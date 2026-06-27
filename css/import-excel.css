@@ -312,6 +312,56 @@
 }
 .btn-export-result:hover { background: #f1f5f9; border-color: var(--primary); color: var(--primary); }
 
+/* ── Nav after import ── */
+.nav-after-import {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 1rem 0 .25rem;
+    border-top: 1px solid var(--border);
+    margin-top: .75rem;
+}
+.nav-label {
+    font-size: .88rem;
+    font-weight: 600;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+}
+.btn-nav-page {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .6rem 1.25rem;
+    border-radius: 10px;
+    font-size: .88rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all .2s;
+}
+.btn-nav-kho {
+    background: #eff6ff;
+    color: var(--primary);
+    border: 1.5px solid #bfdbfe;
+}
+.btn-nav-kho:hover {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+.btn-nav-serial {
+    background: #f0fdf4;
+    color: var(--success);
+    border: 1.5px solid #bbf7d0;
+}
+.btn-nav-serial:hover {
+    background: var(--success);
+    color: #fff;
+    border-color: var(--success);
+}
+
 /* ── Responsive ── */
 @media (max-width: 640px) {
     .main-import { padding: 1rem; }

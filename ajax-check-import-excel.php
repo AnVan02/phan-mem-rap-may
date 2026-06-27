@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ob_start();
@@ -319,6 +319,7 @@ foreach ($byMachine as $may => $machine) {
         foreach ($serials as $sn) {
             if ($sn === '' || $sn === '-' || $sn === '—') {
                 $cellSerials[] = ['status' => 'skip', 'value' => ''];
+                $hasError = true; // serial trống → máy chưa đầy đủ, bỏ qua
             } else {
                 $matched = in_array(mb_strtolower($sn, 'UTF-8'), $dbSer);
                 $cellSerials[] = ['status' => $matched ? 'ok' : 'error', 'value' => $sn,

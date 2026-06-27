@@ -102,12 +102,12 @@ function isActive($page, $current_page)
 
 
                     <!-- NÚT: Import & Kiểm tra Excel -->
-                    <?php if (isAuthorized('import-excel.php')): ?>
+                    <!-- <?php if (isAuthorized('import-excel.php')): ?>
                     <a href="import-excel.php" class="nav-item <?php echo isActive('import-excel.php', $current_page); ?>">
                         <i class="fa-solid fa-file-circle-check"></i>
                         <p>Kiểm Tra Excel</p>
                     </a>
-                    <?php endif; ?>
+                    <?php endif; ?> -->
 
                     <!-- NÚT: Kiểm tra đơn hàng -->
                     <?php if (isAuthorized('tra-cuu-linh-kien.php')): ?>

@@ -270,6 +270,23 @@ try {
             continue;
         }
 
+        // Kiểm tra máy đầy đủ serial: bất kỳ serial nào trống → bỏ qua toàn bộ máy
+        $hasEmptySerial = false;
+        foreach ($machine['items'] as $it) {
+            if ($it['serial'] === '' || $it['serial'] === '-' || $it['serial'] === "\xe2\x80\x94") {
+                $hasEmptySerial = true;
+                break;
+            }
+        }
+        if ($hasEmptySerial) {
+            $results[] = ['so_may' => $may, 'cfg_name' => $machine['cfg_name'],
+                          'status' => 'skip_incomplete', 'imei' => $imeiExcel,
+                          'serial_done' => 0, 'serial_fail' => 0,
+                          'note' => 'Serial chưa đầy đủ, bỏ qua'];
+            $totalSkipped++;
+            continue;
+        }
+
         // Ghi serial từng linh kiện
         $cfgNorm    = mb_strtolower(trim($machine['cfg_name']), 'UTF-8');
         $serialDone = 0;

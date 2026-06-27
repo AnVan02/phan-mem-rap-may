@@ -87,9 +87,12 @@ if ($pdo) {
         <div class="card-body">
             <div class="summary-row" id="summary-row"></div>
             <div class="legend-row">
-                <span class="legend ok"><i class="fa-solid fa-circle-check"></i> IMEI khớp — sẽ được nhập</span>
-                <span class="legend error"><i class="fa-solid fa-circle-xmark"></i> IMEI không khớp — bỏ qua</span>
-                <span class="legend warn"><i class="fa-solid fa-circle-minus"></i> Không có IMEI — vẫn nhập</span>
+                <span class="legend ok"><i class="fa-solid fa-circle-check"></i> Đầy đủ &amp; hợp lệ — sẽ được
+                    nhập</span>
+                <span class="legend error"><i class="fa-solid fa-circle-xmark"></i> IMEI không khớp hoặc serial còn
+                    trống — bỏ qua</span>
+                <span class="legend warn"><i class="fa-solid fa-circle-minus"></i> Không có IMEI nhưng serial đầy đủ —
+                    vẫn nhập</span>
             </div>
             <div class="results-table-wrap">
                 <table class="results-table" id="results-table">
@@ -113,7 +116,7 @@ if ($pdo) {
             <span class="card-title-text">Kết quả nhập dữ liệu</span>
         </div>
         <div class="card-body">
-            <div class="summary-row" id="import-summary-row"></div>
+            <div class="summary-row" id="import-summary-row" style="flex-wrap:wrap;gap:8px"></div>
             <div class="results-table-wrap">
                 <table class="results-table">
                     <thead>
@@ -128,6 +131,16 @@ if ($pdo) {
                     </thead>
                     <tbody id="import-result-tbody"></tbody>
                 </table>
+            </div>
+            <div class="nav-after-import" id="nav-after-import" style="display:none">
+                <span class="nav-label"><i class="fa-solid fa-circle-check" style="color:var(--success)"></i> Nhập xong!
+                    Xem tại:</span>
+                <a id="link-kho-hang" href="#" class="btn-nav-page btn-nav-kho">
+                    <i class="fa-solid fa-warehouse"></i> Kho hàng (theo máy)
+                </a>
+                <a id="link-nhap-serial" href="#" class="btn-nav-page btn-nav-serial">
+                    <i class="fa-solid fa-barcode"></i> Nhập serial (theo linh kiện)
+                </a>
             </div>
         </div>
     </div>
@@ -348,18 +361,21 @@ if ($pdo) {
         importSummaryRow.innerHTML =
             `
             <div class="summary-item ok"><span>${data.total_imported}</span><label>Máy đã nhập</label></div>
-            <div class="summary-item error"><span>${data.total_skipped}</span><label>Bỏ qua (IMEI)</label></div>
+            <div class="summary-item error"><span>${data.total_skipped}</span><label>Bỏ qua</label></div>
             <div class="summary-item warn"><span>${data.total_not_found}</span><label>Serial không tìm thấy slot</label></div>`;
 
         let tbody = '';
         data.results.forEach(r => {
             const isOk = r.status === 'ok';
-            const isSkip = r.status === 'skip_imei';
+            const isSkipImei = r.status === 'skip_imei';
+            const isSkipIncomplete = r.status === 'skip_incomplete';
+            const isSkip = isSkipImei || isSkipIncomplete;
             const cls = isOk ? 'row-ok' : isSkip ? 'row-error' : 'row-warn';
+            const skipLabel = isSkipIncomplete ? 'Serial còn trống' : 'IMEI không khớp';
             const badge = isOk ?
                 '<span class="badge ok"><i class="fa-solid fa-circle-check"></i> Đã nhập</span>' :
                 isSkip ?
-                '<span class="badge error"><i class="fa-solid fa-ban"></i> Bỏ qua</span>' :
+                `<span class="badge error"><i class="fa-solid fa-ban"></i> Bỏ qua — ${escHtml(skipLabel)}</span>` :
                 '<span class="badge warn"><i class="fa-solid fa-triangle-exclamation"></i> Một phần</span>';
             tbody += `<tr class="${cls}">
                 <td><strong>Máy ${escHtml(String(r.so_may))}</strong></td>
@@ -371,6 +387,12 @@ if ($pdo) {
             </tr>`;
         });
         importResultTbody.innerHTML = tbody;
+
+        // Điều hướng sau khi nhập
+        const orderId = orderSelect.value;
+        document.getElementById('link-kho-hang').href = `kho-hang.php?id=${orderId}`;
+        document.getElementById('link-nhap-serial').href = `nhap-serial.php?id=${orderId}`;
+        document.getElementById('nav-after-import').style.display = 'flex';
 
         importActionRow.style.display = 'none';
         cardImportResult.style.display = 'block';

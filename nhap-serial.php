@@ -286,6 +286,13 @@ $total_all_target = count($components_db);
             Sau khi xác nhận, toàn bộ thông tin serial sẽ được<br>chuyển đến bộ phận Kỹ thuật để tiến hành láp ráp.
          </p>
          <div class="footer-actions">
+            <input type="file" id="importFileInputNS" accept=".xlsx,.xls" style="display:none">
+            <button type="button" class="btn-luu-nhap" id="btnImportExcelNS"
+               onclick="document.getElementById('importFileInputNS').click()"
+               style="background:#2563eb; color:#fff; border-color:#2563eb;">
+               <i class="fa-solid fa-file-import"></i>
+               <span id="importLabelNS">Import Excel</span>
+            </button>
             <button class="btn-luu-nhap" id="btnLuuNhap">Lưu nháp</button>
             <button class="btn-xac-nhan" id="btnXacNhan">Xác nhận <i class="fa-solid fa-arrow-right"></i></button>
          </div>
@@ -297,6 +304,62 @@ $total_all_target = count($components_db);
 </script>
 
 <script src="./js/nhap-serial.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+(function() {
+    const input   = document.getElementById('importFileInputNS');
+    const btnEl   = document.getElementById('btnImportExcelNS');
+    const labelEl = document.getElementById('importLabelNS');
+    const orderId = <?php echo json_encode($order_id); ?>;
+
+    input.addEventListener('change', async function() {
+        const file = this.files[0];
+        if (!file) return;
+        this.value = '';
+
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!['xlsx','xls'].includes(ext)) {
+            Swal.fire('Lỗi', 'Chỉ hỗ trợ file .xlsx hoặc .xls', 'error');
+            return;
+        }
+
+        labelEl.textContent = 'Đang nhập...';
+        btnEl.disabled = true;
+
+        const fd = new FormData();
+        fd.append('excel_file', file);
+        fd.append('order_id', orderId);
+
+        try {
+            const res  = await fetch('ajax-import-excel.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            labelEl.textContent = 'Import Excel';
+            btnEl.disabled = false;
+
+            if (!data.success) {
+                Swal.fire('Lỗi nhập', data.message, 'error');
+                return;
+            }
+
+            const msg = `Đã nhập <b>${data.total_imported}</b> máy`
+                + (data.total_skipped   ? ` · Bỏ qua <b>${data.total_skipped}</b> (IMEI không khớp)` : '')
+                + (data.total_not_found ? ` · <b>${data.total_not_found}</b> serial không tìm thấy slot` : '');
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Nhập thành công!',
+                html: msg,
+                confirmButtonText: 'Làm mới trang'
+            }).then(() => location.reload());
+
+        } catch (err) {
+            labelEl.textContent = 'Import Excel';
+            btnEl.disabled = false;
+            Swal.fire('Lỗi kết nối', err.message, 'error');
+        }
+    });
+})();
+</script>
 
 </body>
 
