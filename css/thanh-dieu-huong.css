@@ -1,0 +1,284 @@
+:root {
+   --primary-blue: #0050D2;
+   --accent-blue: #0062FF;
+   --light-blue-bg: #f8fbff;
+   --text-dark: #0F172A;
+   --text-muted: #64748B;
+   --border-color: #E2E8F0;
+   --danger-red: #EF4444;
+   --success-green: #10B981;
+   --white: #ffffff;
+   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+* {
+   box-sizing: border-box;
+}
+
+body {
+   background-color: #fcfdfe;
+   font-family: Montserrat;
+   color: var(--text-dark);
+   margin: 0;
+   overflow-x: hidden;
+}
+
+/* --- APP LAYOUT --- */
+.app-container {
+   display: flex;
+   flex-direction: column;
+   min-height: 100vh;
+}
+
+.app-body {
+   display: flex;
+   flex: 1;
+}
+
+/* --- TOP HEADER (Premium Style) --- */
+.top-header {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   padding: 0 24px;
+   background: rgba(255, 255, 255, 0.85);
+   backdrop-filter: blur(12px);
+   -webkit-backdrop-filter: blur(12px);
+   border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+   height: 80px;
+   position: sticky;
+   top: 0;
+   z-index: 1000;
+   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+}
+
+.header-logo {
+   display: flex;
+   align-items: center;
+}
+
+.header-actions-right {
+   display: flex;
+   align-items: center;
+   gap: 16px;
+   margin-left: auto;
+}
+
+.user-profile-header {
+   display: flex;
+   align-items: center;
+   background: #f1f5f9;
+   padding: 6px 6px 6px 16px;
+   border-radius: 50px;
+   gap: 12px;
+   border: 1px solid #e2e8f0;
+   transition: all 0.2s;
+}
+
+.user-profile-header:hover {
+   background: #e2e8f0;
+}
+
+.profile-info-top {
+   display: flex;
+   align-items: center;
+   gap: 10px;
+}
+
+.profile-info-top i {
+   font-size: 20px;
+   color: var(--primary-blue);
+}
+
+.user-name {
+   font-size: 14px;
+   font-weight: 700;
+   color: var(--text-dark);
+}
+
+.logout-btn-top {
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   width: 32px;
+   height: 32px;
+   border-radius: 50%;
+   color: #fff;
+   background: #64748b;
+   text-decoration: none;
+   transition: all 0.2s;
+   font-size: 13px;
+}
+
+.logout-btn-top:hover {
+   background: var(--danger-red);
+}
+
+.menu-toggle {
+   display: none;
+   /* Hiện trên mobile */
+   background: var(--primary-blue);
+   border: none;
+   width: 44px;
+   height: 44px;
+   border-radius: 12px;
+   color: #fff;
+   font-size: 1.1rem;
+   cursor: pointer;
+   box-shadow: 0 4px 12px rgba(0, 80, 210, 0.2);
+   transition: all 0.2s;
+   align-items: center;
+   justify-content: center;
+}
+
+/* --- SIDEBAR --- */
+.sidebar {
+   width: 300px;
+   background: #fff;
+   border-right: 1px solid var(--border-color);
+   height: calc(100vh - 80px);
+   position: sticky;
+   top: 80px;
+   display: flex;
+   flex-direction: column;
+   padding: 10px 0;
+   transition: all 0.3s ease;
+   z-index: 998;
+}
+
+.sidebar-links {
+   display: flex;
+   flex-direction: column;
+   gap: 4px;
+   padding: 0 12px;
+}
+
+.nav-item {
+   display: flex;
+   align-items: center;
+   gap: 16px;
+   padding: 30px 16px;
+   text-decoration: none;
+   color: #64748B;
+   border-radius: 12px;
+   transition: all 0.2s;
+   font-weight: 600;
+   margin-bottom: 4px;
+}
+
+.nav-item i {
+   font-size: 1.2rem;
+   width: 24px;
+   text-align: center;
+}
+
+.nav-item:hover {
+   background: #F8FAFC;
+   color: var(--primary-blue);
+}
+
+.nav-item.active {
+   background: #F0F7FF;
+   color: var(--primary-blue);
+}
+
+/* --- MAIN CONTENT --- */
+.main-content-order {
+   flex: 1;
+   padding: 40px;
+   background-color: #fcfdfe;
+}
+
+/* --- RESPONSIVE --- */
+@media (max-width: 991px) {
+   .top-header {
+      padding: 0 15px;
+      height: 75px;
+   }
+
+   .user-profile-header {
+      background: transparent;
+      border: none;
+      padding: 0;
+   }
+
+   .user-name {
+      display: none;
+   }
+
+   .profile-info-top i {
+      font-size: 26px;
+      color: #334155;
+   }
+
+   .logout-btn-top {
+      background: #f1f5f9;
+      color: #64748b;
+      margin-left: 5px;
+   }
+
+   .menu-toggle {
+      display: flex;
+      /* Hiện trên mobile */
+      margin-left: 8px;
+      z-index: 1001;
+      /* Đảm bảo nằm trên Header */
+   }
+
+   .sidebar {
+      position: fixed;
+      left: -320px;
+      top: 0;
+      height: 100vh;
+      width: 280px;
+      z-index: 2001;
+      /* Nằm trên cả Header và Overlay */
+      box-shadow: 20px 0 50px rgba(0, 0, 0, 0.1);
+      transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      visibility: hidden;
+      /* Ẩn khi không dùng để không cản trở click */
+   }
+
+   .sidebar.active {
+      left: 0;
+      visibility: visible;
+   }
+
+   .sidebar-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 1500;
+      /* Nằm giữa Header và Sidebar */
+   }
+
+   .sidebar-overlay.active {
+      display: block;
+   }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+   width: 6px;
+}
+
+::-webkit-scrollbar-track {
+   background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+   background: #cbd5e1;
+   border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+   background: #94a3b8;
+}
