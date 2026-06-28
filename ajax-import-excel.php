@@ -245,47 +245,142 @@ foreach ($machineBlocks as $b) {
 }
 ksort($byMachine);
 
+// -------------------------------------------------------
+// KIỂM TRA: serial trong file Excel phải khớp với DB
+// -------------------------------------------------------
+
+// Tải toàn bộ serial đã nhập cho đơn hàng này (từ nhap-serial.php)
+$existingSerials = []; // [serial_lower => true]
+try {
+    $stAll = $pdo->prepare(
+        "SELECT LOWER(TRIM(so_serial)) FROM chitiet_donhang
+         WHERE id_donhang = ? AND so_serial IS NOT NULL AND so_serial <> ''"
+    );
+    $stAll->execute([$order_id]);
+    foreach ($stAll->fetchAll(PDO::FETCH_COLUMN) as $sn) {
+        $existingSerials[$sn] = true;
+    }
+} catch (PDOException $e) {
+    jimport_exit(['success' => false, 'message' => 'Lỗi tải dữ liệu: ' . $e->getMessage()]);
+}
+
+// Kiểm tra từng serial linh kiện trong file
+foreach ($byMachine as $may => $machine) {
+    $totalItems = count($machine['items']);
+    $filledCount = 0;
+    $emptyCount = 0;
+
+    foreach ($machine['items'] as $it) {
+        $sn = trim($it['serial']);
+        if ($sn === '' || $sn === '-' || $sn === '—') {
+            $emptyCount++;
+            continue;
+        }
+        $filledCount++;
+        $snLower = mb_strtolower($sn, 'UTF-8');
+        if (!isset($existingSerials[$snLower])) {
+            jimport_exit(['success' => false,
+                'message' => "Lỗi Máy $may ({$it['type']}): Serial \"$sn\" không khớp với dữ liệu đã nhập trong đơn hàng #$order_id. Vui lòng kiểm tra lại!"
+            ]);
+        }
+    }
+
+    // Ít nhất phải có 1 linh kiện được điền serial trong máy
+    if ($filledCount === 0) {
+        jimport_exit(['success' => false,
+            'message' => "Lỗi: Máy $may trong file Excel chưa điền serial nào! Vui lòng cập nhật ít nhất 1 serial cho máy này trước khi import."
+        ]);
+    }
+}
+
+// Kiểm tra IMEI/IMER trong file phải khớp với DB của đơn hàng
+foreach ($byMachine as $may => $machine) {
+    $imeiExcel = $machine['imei'];
+    if ($imeiExcel === '') {
+        jimport_exit(['success' => false,
+            'message' => "Lỗi Máy $may: Chưa điền số IMEI/IMER! Bắt buộc phải có IMEI/IMER để kiểm tra."
+        ]);
+    }
+    $imeiLower = mb_strtolower($imeiExcel, 'UTF-8');
+
+    // Kiểm tra IMEI tồn tại trong đơn hàng
+    if (!isset($existingSerials[$imeiLower])) {
+        jimport_exit(['success' => false,
+            'message' => "Lỗi Máy $may: IMEI/IMER \"$imeiExcel\" không khớp với dữ liệu đã nhập trong đơn hàng #$order_id. Vui lòng kiểm tra lại!"
+        ]);
+    }
+
+    // Kiểm tra IMEI gán đúng số máy (nếu DB đã gán so_may cho IMEI này)
+    $dbImeiForMay = $dbImeiRows[$may] ?? [];
+    if (!empty($dbImeiForMay) && !in_array($imeiLower, $dbImeiForMay) && !in_array($imeiLower, $allOrderImeiSerials)) {
+        jimport_exit(['success' => false,
+            'message' => "Lỗi Máy $may: IMEI/IMER \"$imeiExcel\" đã được gán cho máy khác trong đơn hàng #$order_id. Vui lòng kiểm tra lại!"
+        ]);
+    }
+}
+
+// Kiểm tra tổng số máy trong file Excel phải khớp với DB
+$excelMachineCount = count($byMachine);
+$dbMachineCount = 0;
+try {
+    // Đếm số máy thực tế trong DB (dựa trên so_may đã gán)
+    $stMayCount = $pdo->prepare(
+        "SELECT COUNT(DISTINCT so_may) FROM chitiet_donhang
+         WHERE id_donhang = ? AND so_may IS NOT NULL AND so_may > 0"
+    );
+    $stMayCount->execute([$order_id]);
+    $dbMachineCount = (int)$stMayCount->fetchColumn();
+
+    // Nếu chưa gán so_may thì tính từ CPU/MAIN
+    if ($dbMachineCount === 0) {
+        $stCpu = $pdo->prepare(
+            "SELECT COUNT(*) FROM chitiet_donhang
+             WHERE id_donhang = ? AND UPPER(loai_linhkien) IN ('CPU','MAIN','MAINBOARD')"
+        );
+        $stCpu->execute([$order_id]);
+        $dbMachineCount = (int)$stCpu->fetchColumn();
+    }
+} catch (PDOException $e) {}
+
+if ($dbMachineCount > 0 && $excelMachineCount !== $dbMachineCount) {
+    jimport_exit(['success' => false,
+        'message' => "Lỗi: File Excel có $excelMachineCount máy nhưng đơn hàng #$order_id có $dbMachineCount máy trong hệ thống. Số máy phải khớp nhau!"
+    ]);
+}
+
+// Kiểm tra từng số máy trong file phải hợp lệ
+foreach ($byMachine as $may => $machine) {
+    if ($dbMachineCount > 0 && ((int)$may < 1 || (int)$may > $dbMachineCount)) {
+        jimport_exit(['success' => false,
+            'message' => "Lỗi: Số máy $may trong file Excel không hợp lệ. Đơn hàng #$order_id chỉ có máy từ 1 đến $dbMachineCount."
+        ]);
+    }
+}
+
+// Kiểm tra file Excel phải có đủ tất cả các máy (không được thiếu máy nào)
+if ($dbMachineCount > 0) {
+    $missingMachines = [];
+    for ($m = 1; $m <= $dbMachineCount; $m++) {
+        if (!isset($byMachine[$m])) {
+            $missingMachines[] = "Máy $m";
+        }
+    }
+    if (!empty($missingMachines)) {
+        jimport_exit(['success' => false,
+            'message' => "Lỗi: File Excel chưa cập nhật đủ số máy! Thiếu: " . implode(', ', $missingMachines) . ". Đơn hàng #$order_id có $dbMachineCount máy, vui lòng cập nhật đầy đủ rồi import lại."
+        ]);
+    }
+}
+
+
+// -------------------------------------------------------
+// THỰC HIỆN NHẬP (sau khi đã qua toàn bộ kiểm tra)
+// -------------------------------------------------------
 try {
     $pdo->beginTransaction();
 
     foreach ($byMachine as $may => $machine) {
         $imeiExcel = $machine['imei'];
-        $jsonImei  = $orderImeis[$may - 1] ?? '';
-        $dbImei    = $dbImeiRows[$may] ?? [];
-
-        // Kiểm tra IMEI: bỏ qua nếu Excel có IMEI nhưng không khớp DB
-        // Fallback: tìm trong toàn bộ IMEI/IMER đơn hàng vì so_may có thể = 0
-        $imeiOk = true;
-        if ($imeiExcel !== '') {
-            $imeiLower = mb_strtolower($imeiExcel, 'UTF-8');
-            $imeiOk    = ($jsonImei !== '' && $imeiLower === $jsonImei)
-                      || in_array($imeiLower, $dbImei)
-                      || in_array($imeiLower, $allOrderImeiSerials);
-        }
-
-        if (!$imeiOk) {
-            $results[] = ['so_may' => $may, 'status' => 'skip_imei',
-                          'imei' => $imeiExcel, 'note' => 'IMEI không khớp, bỏ qua'];
-            $totalSkipped++;
-            continue;
-        }
-
-        // Kiểm tra máy đầy đủ serial: bất kỳ serial nào trống → bỏ qua toàn bộ máy
-        $hasEmptySerial = false;
-        foreach ($machine['items'] as $it) {
-            if ($it['serial'] === '' || $it['serial'] === '-' || $it['serial'] === "\xe2\x80\x94") {
-                $hasEmptySerial = true;
-                break;
-            }
-        }
-        if ($hasEmptySerial) {
-            $results[] = ['so_may' => $may, 'cfg_name' => $machine['cfg_name'],
-                          'status' => 'skip_incomplete', 'imei' => $imeiExcel,
-                          'serial_done' => 0, 'serial_fail' => 0,
-                          'note' => 'Serial chưa đầy đủ, bỏ qua'];
-            $totalSkipped++;
-            continue;
-        }
 
         // Ghi serial từng linh kiện
         $cfgNorm    = mb_strtolower(trim($machine['cfg_name']), 'UTF-8');
@@ -293,15 +388,13 @@ try {
         $serialFail = 0;
         $details    = [];
 
-        // Gom theo type+model để xử lý nhiều dòng cùng loại (2 RAM...)
+        // Gom theo type+model
         $groups = [];
         foreach ($machine['items'] as $it) {
             $gKey = mb_strtolower($it['type'], 'UTF-8') . '|||' . $it['model'];
             $groups[$gKey][] = $it['serial'];
         }
 
-        // Dùng LIKE trên ten_cauhinh để chỉ lấy rows thuộc đúng cấu hình này
-        // (ten_cauhinh có thể là "Cấu hình 1" hoặc "Cấu hình 1, Cấu hình 2" cho shared)
         $cfgLike = '%' . $machine['cfg_name'] . '%';
 
         foreach ($groups as $gKey => $serials) {
@@ -310,7 +403,7 @@ try {
             $kw_likes  = array_map(fn($k) => '%' . $k . '%', $keywords);
             $ph        = implode(' OR ', array_fill(0, count($keywords), 'LOWER(loai_linhkien) LIKE ?'));
 
-            // Ưu tiên 1: đã gán đúng so_may + đúng cấu hình
+            // Ưu tiên 1
             $sqlAll = "SELECT id_ct FROM chitiet_donhang
                        WHERE id_donhang = ? AND so_may = ? AND ($ph)
                          AND ten_cauhinh LIKE ?
@@ -319,7 +412,7 @@ try {
             $stAll->execute(array_merge([$order_id, $may], $kw_likes, [$cfgLike]));
             $matchedRows = $stAll->fetchAll(PDO::FETCH_COLUMN);
 
-            // Ưu tiên 2: chưa gán so_may, nhưng đúng cấu hình
+            // Ưu tiên 2
             if (empty($matchedRows)) {
                 $sqlFb = "SELECT id_ct FROM chitiet_donhang
                           WHERE id_donhang = ? AND (so_may IS NULL OR so_may = 0) AND ($ph)
@@ -330,7 +423,7 @@ try {
                 $matchedRows = $stFb->fetchAll(PDO::FETCH_COLUMN);
             }
 
-            // Ưu tiên 3: chưa gán so_may, không lọc cấu hình (dự phòng cuối)
+            // Ưu tiên 3
             if (empty($matchedRows)) {
                 $sqlFb2 = "SELECT id_ct FROM chitiet_donhang
                            WHERE id_donhang = ? AND (so_may IS NULL OR so_may = 0) AND ($ph)
@@ -353,17 +446,21 @@ try {
             }
         }
 
+        if ($serialFail > 0) {
+            $pdo->rollBack();
+            jimport_exit(['success' => false, 'message' => "Lỗi Máy $may: Có $serialFail serial linh kiện không khớp cấu hình trong cơ sở dữ liệu."]);
+        }
+
         $results[] = [
             'so_may'       => $may,
             'cfg_name'     => $machine['cfg_name'],
             'imei'         => $imeiExcel,
-            'status'       => $serialFail > 0 ? 'partial' : 'ok',
+            'status'       => 'ok',
             'serial_done'  => $serialDone,
-            'serial_fail'  => $serialFail,
-            'note'         => $serialFail > 0 ? "$serialFail linh kiện không tìm thấy slot" : '',
+            'serial_fail'  => 0,
+            'note'         => '',
         ];
         $totalImported++;
-        if ($serialFail > 0) $totalNotFound += $serialFail;
     }
 
     $pdo->commit();
@@ -374,10 +471,18 @@ try {
 }
 
 ob_end_clean();
-echo json_encode([
-    'success'        => true,
-    'total_imported' => $totalImported,
-    'total_skipped'  => $totalSkipped,
-    'total_not_found'=> $totalNotFound,
-    'results'        => $results,
-], JSON_UNESCAPED_UNICODE);
+if ($totalImported === 0) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Lỗi: Không có máy nào được nhập (Serial chưa đầy đủ hoặc sai IMEI).',
+        'results' => $results,
+    ], JSON_UNESCAPED_UNICODE);
+} else {
+    echo json_encode([
+        'success'        => true,
+        'total_imported' => $totalImported,
+        'total_skipped'  => $totalSkipped,
+        'total_not_found'=> $totalNotFound,
+        'results'        => $results,
+    ], JSON_UNESCAPED_UNICODE);
+}

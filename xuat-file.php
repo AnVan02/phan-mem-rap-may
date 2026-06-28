@@ -578,26 +578,46 @@ $filename = "Cau Hinh ROSA-" . $clean_customer . "-" . $date_str . ".xlsx";
       // Căn giữa mặc định cho toàn bộ sheet
       $spreadsheet->getDefaultStyle()->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
       $spreadsheet->getDefaultStyle()->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+      $spreadsheet->getDefaultStyle()->getFont()->setName('Aptos narrow');
       $sheet->getDefaultRowDimension()->setRowHeight(25);
 
-      // Mỗi cấu hình chiếm 4 cột + 1 cột trống ngăn cách
-      $colOffset = 0;
+      // Mỗi cấu hình chiếm 2 khối cột (máy số lẻ bên trái, máy số chẵn bên phải) => 10 cột
+      $baseColOffset = 0;
       foreach ($configs as $cfg_data) {
-         $rowIdx = 1;
+         $rowIdxLeft = 1;
+         $rowIdxRight = 1;
 
-         // Xác định tên cột Excel cho cấu hình hiện tại (A, B, C, D hoặc F, G, H, I, ...)
-         $colA = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colOffset + 1);
-         $colB = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colOffset + 2);
-         $colC = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colOffset + 3);
-         $colD = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colOffset + 4);
+         // Thiết lập độ rộng cột cho cả 2 bên (Lẻ: offset 0, Chẵn: offset 5)
+         foreach ([0, 5] as $sideOffset) {
+            $colA = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($baseColOffset + $sideOffset + 1);
+            $colB = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($baseColOffset + $sideOffset + 2);
+            $colC = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($baseColOffset + $sideOffset + 3);
+            $colD = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($baseColOffset + $sideOffset + 4);
 
-         // Độ rộng cột
-         $sheet->getColumnDimension($colA)->setWidth(20);
-         $sheet->getColumnDimension($colB)->setWidth(40);
-         $sheet->getColumnDimension($colC)->setWidth(40);
-         $sheet->getColumnDimension($colD)->setWidth(10);
+            $sheet->getColumnDimension($colA)->setWidth(20);
+            $sheet->getColumnDimension($colB)->setWidth(40);
+            $sheet->getColumnDimension($colC)->setWidth(40);
+            $sheet->getColumnDimension($colD)->setWidth(10);
+         }
 
          foreach ($cfg_data['machines'] as $m_data) {
+            $may_num = $m_data['may_num'];
+
+            // Máy lẻ bên trái, máy chẵn bên phải
+            if ($may_num % 2 != 0) {
+               $colOffset = $baseColOffset + 0;
+               $rowIdx = $rowIdxLeft;
+            } else {
+               $colOffset = $baseColOffset + 5;
+               $rowIdx = $rowIdxRight;
+            }
+
+            // Xác định tên cột Excel cho máy hiện tại
+            $colA = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colOffset + 1);
+            $colB = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colOffset + 2);
+            $colC = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colOffset + 3);
+            $colD = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colOffset + 4);
+
             // Tính chỉ số máy toàn cục để lấy đúng IMEI từ mảng JSON
             $global_idx = 0;
             foreach ($all_cfg_names as $cn) {
@@ -632,19 +652,21 @@ $filename = "Cau Hinh ROSA-" . $clean_customer . "-" . $date_str . ".xlsx";
                'alignment' => ['vertical' => Alignment::VERTICAL_CENTER, 'horizontal' => Alignment::HORIZONTAL_CENTER],
             ];
             $sheet->getStyle("$colA$rowIdx:$colD$rowIdx")->applyFromArray($headerStyle);
+            $sheet->getStyle($colB . $rowIdx)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+            $sheet->getStyle($colB . $rowIdx)->getAlignment()->setWrapText(true);
             $sheet->getStyle("$colA$rowIdx:$colD$rowIdx")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFFFFF');
             $rowIdx++;
 
             // --- DÒNG TIÊU ĐỀ 2: Sub-header (Thành Phần | Mã SP | Số Serial / IMER | SLUONG) ---
             $sheet->setCellValue($colA . $rowIdx, 'Thành Phần');
             $sheet->setCellValue($colB . $rowIdx, 'Mã SP');
-            // $sheet->setCellValue($colC . $rowIdx, 'Số Serial / IMER');
+            $sheet->setCellValue($colC . $rowIdx, '');
             $sheet->setCellValue($colD . $rowIdx, 'SLƯỢNG');
 
             $subHeaderStyle = [
-               'font' => ['bold' => true, 'color' => ['rgb' => 'FF0000'], 'font-family' => 'Aptos narrow'],
+               'font' => ['bold' => true, 'color' => ['rgb' => 'FF0000']],
                'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['rgb' => '000000']]],
-               'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
+               'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
             ];
             $sheet->getStyle("$colA$rowIdx:$colD$rowIdx")->applyFromArray($subHeaderStyle);
             $rowIdx++;
@@ -674,11 +696,7 @@ $filename = "Cau Hinh ROSA-" . $clean_customer . "-" . $date_str . ".xlsx";
                }
                // RAM: tô đỏ serial
                if ($it['tp'] == 'Ram') {
-                  $snStyle['font']['color'] = ['rgb' => 'EF4444'];
-               }
-               // Hệ điều hành / Phần mềm: tô nền xanh lá nếu có serial
-               if (($it['tp'] == 'Hệ Điều Hành' || $it['tp'] == 'Phần Mềm') && !empty($it['sn'])) {
-                  $sheet->getStyle($colC . $rowIdx)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('DCFCE7');
+                  $snStyle['font']['color'] = ['rgb' => 'FF0000'];
                }
                $sheet->getStyle($colC . $rowIdx)->applyFromArray($snStyle);
 
@@ -702,10 +720,11 @@ $filename = "Cau Hinh ROSA-" . $clean_customer . "-" . $date_str . ".xlsx";
                   $sheet->setCellValue($colB . $rowIdx, $it['nm']);
 
                   $sheet->getStyle($colA . $rowIdx)->getFont()->setBold(true);
-                  $sheet->getStyle($colA . $rowIdx)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                  $sheet->getStyle($colA . $rowIdx)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                   $sheet->getStyle($colA . $rowIdx)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
 
                   $sheet->getStyle($colB . $rowIdx)->getAlignment()->setWrapText(true);
+                  $sheet->getStyle($colB . $rowIdx)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                   $sheet->getStyle($colB . $rowIdx)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
 
                   $processed_until = $i + $span - 1;
@@ -719,8 +738,15 @@ $filename = "Cau Hinh ROSA-" . $clean_customer . "-" . $date_str . ".xlsx";
             }
 
             $rowIdx += 1; // Dòng trống ngăn cách giữa các máy
+
+            // Lưu lại vị trí dòng cho lần in máy tiếp theo cùng bên
+            if ($may_num % 2 != 0) {
+               $rowIdxLeft = $rowIdx;
+            } else {
+               $rowIdxRight = $rowIdx;
+            }
          }
-         $colOffset += 5; // Chuyển sang khối cột tiếp theo (4 cột dữ liệu + 1 cột trống)
+         $baseColOffset += 10; // Chuyển sang khối 10 cột tiếp theo cho cấu hình sau
       }
 
       // Xuất file ra trình duyệt

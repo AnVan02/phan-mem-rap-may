@@ -328,10 +328,20 @@ if ($pdo && $current_user_id) {
                         }
                         $imei_values = array_values(array_unique($imei_values));
                         $imei_display = implode(' / ', $imei_values);
+
+                        $all_serials = [];
+                        foreach ($m_items as $mi_s) {
+                           $s_text = trim((string) ($mi_s['so_serial'] ?? ''));
+                           if ($s_text !== '') {
+                              $all_serials[] = strtolower($s_text);
+                           }
+                        }
+                        $all_serials_str = implode(' ', array_unique($all_serials));
                      ?>
                     <tr data-filled="<?php echo $filled; ?>" data-total="<?php echo $total; ?>"
                         data-machine-num="<?php echo $i; ?>"
                         data-imei="<?php echo htmlspecialchars(strtolower($imei_display)); ?>"
+                        data-serials="<?php echo htmlspecialchars($all_serials_str); ?>"
                         data-config="<?php echo htmlspecialchars(strtolower($l_key)); ?>">
                         <td class="td-may">
                             <div class="machine-info-col">
@@ -583,19 +593,27 @@ const myLockedMachine = <?php echo json_encode($my_locked_machine); ?>;
             if (query) {
                 const machineNum = (row.dataset.machineNum || '');
                 const imei = (row.dataset.imei || '');
-                const isNumeric = /^\d+$/.test(query);
-                if (isNumeric) {
-                    // Gõ số thuần: khớp đúng số máy HOẶC IMEI có chứa chuỗi đó
-                    searchOk = machineNum === query || imei.includes(query);
+                const serials = (row.dataset.serials || '');
+                const config = (row.dataset.config || '');
+                const compText = row.querySelector('.td-linhkien') ? row.querySelector('.td-linhkien').textContent.toLowerCase() : '';
+                const mayText = row.querySelector('.td-may') ? row.querySelector('.td-may').textContent.toLowerCase() : '';
+
+                if (machineNum === query) {
+                    // Trùng khớp hoàn toàn với số máy
+                    searchOk = true;
                 } else {
-                    // Gõ chữ: tìm theo cấu hình, tên linh kiện, tiêu đề máy
-                    const config = (row.dataset.config || '');
-                    const compText = row.querySelector('.td-linhkien') ? row.querySelector('.td-linhkien')
-                        .textContent.toLowerCase() : '';
-                    const mayText = row.querySelector('.td-may') ? row.querySelector('.td-may').textContent
-                        .toLowerCase() : '';
-                    searchOk = config.includes(query) || compText.includes(query) || mayText.includes(
-                        query);
+                    const isNumeric = /^\d+$/.test(query);
+                    // Nếu chỉ gõ số ngắn (1-3 ký tự), thường là tìm số máy.
+                    // Tránh việc gõ "1" tìm trong compText lại ra "12100" khiến máy nào cũng hiện.
+                    if (isNumeric && query.length <= 3) {
+                        searchOk = imei.includes(query) || serials.includes(query);
+                    } else {
+                        searchOk = imei.includes(query) || 
+                                   serials.includes(query) ||
+                                   config.includes(query) || 
+                                   compText.includes(query) || 
+                                   mayText.includes(query);
+                    }
                 }
             }
 

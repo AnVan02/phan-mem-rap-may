@@ -73,7 +73,11 @@ $total_all_target = count($components_db);
             <div class="overall-percent" id="overallPercent">0%</div>
          </div>
 
-         <div class="progress-header-right">
+         <div class="progress-header-right" style="display: flex; flex-direction: column; align-items: flex-end; gap: 12px;">
+            <!-- <button type="button" onclick="document.getElementById('importFileInputNS').click()" style="background:#2563eb; color:#fff; border:none; padding: 10px 16px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; box-shadow: 0 4px 6px -1px rgba(37,99,235,0.2); transition: all 0.2s ease;">
+               <i class="fa-solid fa-file-import"></i>
+               <span id="importLabelNS_top">Import Excel</span>
+            </button> -->
             <div class="serial-stat">
                <span class="stat-label">ĐÃ NHẬP</span>
                <div class="stat-numbers">
@@ -286,13 +290,13 @@ $total_all_target = count($components_db);
             Sau khi xác nhận, toàn bộ thông tin serial sẽ được<br>chuyển đến bộ phận Kỹ thuật để tiến hành láp ráp.
          </p>
          <div class="footer-actions">
-            <input type="file" id="importFileInputNS" accept=".xlsx,.xls" style="display:none">
+            <!-- <input type="file" id="importFileInputNS" accept=".xlsx,.xls" style="display:none">
             <button type="button" class="btn-luu-nhap" id="btnImportExcelNS"
                onclick="document.getElementById('importFileInputNS').click()"
                style="background:#2563eb; color:#fff; border-color:#2563eb;">
                <i class="fa-solid fa-file-import"></i>
                <span id="importLabelNS">Import Excel</span>
-            </button>
+            </button> -->
             <button class="btn-luu-nhap" id="btnLuuNhap">Lưu nháp</button>
             <button class="btn-xac-nhan" id="btnXacNhan">Xác nhận <i class="fa-solid fa-arrow-right"></i></button>
          </div>
@@ -324,6 +328,8 @@ $total_all_target = count($components_db);
         }
 
         labelEl.textContent = 'Đang nhập...';
+        const topLabel = document.getElementById('importLabelNS_top');
+        if (topLabel) topLabel.textContent = 'Đang nhập...';
         btnEl.disabled = true;
 
         const fd = new FormData();
@@ -334,6 +340,7 @@ $total_all_target = count($components_db);
             const res  = await fetch('ajax-import-excel.php', { method: 'POST', body: fd });
             const data = await res.json();
             labelEl.textContent = 'Import Excel';
+            if (topLabel) topLabel.textContent = 'Import Excel';
             btnEl.disabled = false;
 
             if (!data.success) {
@@ -354,6 +361,7 @@ $total_all_target = count($components_db);
 
         } catch (err) {
             labelEl.textContent = 'Import Excel';
+            if (topLabel) topLabel.textContent = 'Import Excel';
             btnEl.disabled = false;
             Swal.fire('Lỗi kết nối', err.message, 'error');
         }
