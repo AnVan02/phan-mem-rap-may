@@ -581,42 +581,24 @@ $filename = "Cau Hinh ROSA-" . $clean_customer . "-" . $date_str . ".xlsx";
       $spreadsheet->getDefaultStyle()->getFont()->setName('Aptos narrow');
       $sheet->getDefaultRowDimension()->setRowHeight(25);
 
-      // Mỗi cấu hình chiếm 2 khối cột (máy số lẻ bên trái, máy số chẵn bên phải) => 10 cột
+      // Mỗi cấu hình chiếm 1 khối cột 4 cột, tất cả máy xếp dọc xuống dưới
       $baseColOffset = 0;
       foreach ($configs as $cfg_data) {
-         $rowIdxLeft = 1;
-         $rowIdxRight = 1;
+         $rowIdx = 1;
 
-         // Thiết lập độ rộng cột cho cả 2 bên (Lẻ: offset 0, Chẵn: offset 5)
-         foreach ([0, 5] as $sideOffset) {
-            $colA = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($baseColOffset + $sideOffset + 1);
-            $colB = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($baseColOffset + $sideOffset + 2);
-            $colC = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($baseColOffset + $sideOffset + 3);
-            $colD = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($baseColOffset + $sideOffset + 4);
+         // Thiết lập độ rộng cột cho khối bên trái
+         $colA = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($baseColOffset + 1);
+         $colB = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($baseColOffset + 2);
+         $colC = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($baseColOffset + 3);
+         $colD = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($baseColOffset + 4);
 
-            $sheet->getColumnDimension($colA)->setWidth(20);
-            $sheet->getColumnDimension($colB)->setWidth(40);
-            $sheet->getColumnDimension($colC)->setWidth(40);
-            $sheet->getColumnDimension($colD)->setWidth(10);
-         }
+         $sheet->getColumnDimension($colA)->setWidth(20);
+         $sheet->getColumnDimension($colB)->setWidth(40);
+         $sheet->getColumnDimension($colC)->setWidth(40);
+         $sheet->getColumnDimension($colD)->setWidth(10);
 
          foreach ($cfg_data['machines'] as $m_data) {
             $may_num = $m_data['may_num'];
-
-            // Máy lẻ bên trái, máy chẵn bên phải
-            if ($may_num % 2 != 0) {
-               $colOffset = $baseColOffset + 0;
-               $rowIdx = $rowIdxLeft;
-            } else {
-               $colOffset = $baseColOffset + 5;
-               $rowIdx = $rowIdxRight;
-            }
-
-            // Xác định tên cột Excel cho máy hiện tại
-            $colA = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colOffset + 1);
-            $colB = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colOffset + 2);
-            $colC = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colOffset + 3);
-            $colD = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($colOffset + 4);
 
             // Tính chỉ số máy toàn cục để lấy đúng IMEI từ mảng JSON
             $global_idx = 0;
@@ -738,15 +720,8 @@ $filename = "Cau Hinh ROSA-" . $clean_customer . "-" . $date_str . ".xlsx";
             }
 
             $rowIdx += 1; // Dòng trống ngăn cách giữa các máy
-
-            // Lưu lại vị trí dòng cho lần in máy tiếp theo cùng bên
-            if ($may_num % 2 != 0) {
-               $rowIdxLeft = $rowIdx;
-            } else {
-               $rowIdxRight = $rowIdx;
-            }
          }
-         $baseColOffset += 10; // Chuyển sang khối 10 cột tiếp theo cho cấu hình sau
+         $baseColOffset += 5; // Chuyển sang khối 5 cột tiếp theo cho cấu hình sau
       }
 
       // Xuất file ra trình duyệt

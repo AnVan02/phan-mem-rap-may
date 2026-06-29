@@ -35,7 +35,7 @@ if ($pdo) {
         $sql_all = "SELECT d.*, 
                            (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER')) as total_items,
                            (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND c.so_serial IS NOT NULL AND c.so_serial != '') as done_items,
-                           (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND c.linhkien_chon IS NOT NULL AND c.linhkien_chon != '') as tech_done_items
+                           (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND c.user_id_save IS NOT NULL AND c.user_id_save > 0) as tech_done_items
                     FROM donhang d
                     HAVING total_items > 0 AND total_items = done_items
                     ORDER BY d.ngay_tao DESC";
@@ -44,10 +44,11 @@ if ($pdo) {
         // Lấy tối đa 3 đơn hàng cần ưu tiên (Cũng chỉ lấy đơn đã có Serial)
         $sql_priority = "SELECT d.*, 
                                (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER')) as total_items,
-                               (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND c.so_serial IS NOT NULL AND c.so_serial != '') as done_items
+                               (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND c.so_serial IS NOT NULL AND c.so_serial != '') as done_items,
+                               (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND c.user_id_save IS NOT NULL AND c.user_id_save > 0) as tech_done_items
                         FROM donhang d
                         WHERE (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND c.so_serial IS NOT NULL AND c.so_serial != '') > 0
-                          AND (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND (c.so_serial IS NULL OR c.so_serial = '')) > 0
+                          AND (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND (c.user_id_save IS NULL OR c.user_id_save = 0)) > 0
                         ORDER BY d.ngay_tao ASC
                         LIMIT 3";
         $priority_orders = $pdo->query($sql_priority)->fetchAll();

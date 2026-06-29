@@ -233,17 +233,20 @@ $totalImported = 0;
 $totalSkipped  = 0;
 $totalNotFound = 0;
 
-// Nhóm theo số máy
+// Nhóm theo cấu hình và số máy
 $byMachine = [];
 foreach ($machineBlocks as $b) {
-    $may = $b['so_may'];
-    if (!isset($byMachine[$may])) {
-        $byMachine[$may] = ['so_may' => $may, 'cfg_name' => $b['cfg_name'],
-                            'imei' => $b['imei'], 'items' => []];
+    $mayKey = mb_strtolower(trim($b['cfg_name']), 'UTF-8') . '_' . $b['so_may'];
+    if (!isset($byMachine[$mayKey])) {
+        $byMachine[$mayKey] = [
+            'so_may'   => $b['so_may'], 
+            'cfg_name' => $b['cfg_name'],
+            'imei'     => $b['imei'], 
+            'items'    => []
+        ];
     }
-    foreach ($b['items'] as $it) $byMachine[$may]['items'][] = $it;
+    foreach ($b['items'] as $it) $byMachine[$mayKey]['items'][] = $it;
 }
-ksort($byMachine);
 
 // -------------------------------------------------------
 // KIỂM TRA: serial trong file Excel phải khớp với DB
@@ -265,7 +268,11 @@ try {
 }
 
 // Kiểm tra từng serial linh kiện trong file
-foreach ($byMachine as $may => $machine) {
+$seenSerialsInExcel = []; // Để kiểm tra trùng lặp serial trong chính file Excel
+
+foreach ($byMachine as $mayKey => $machine) {
+    $may = $machine['so_may'];
+    $cfg = $machine['cfg_name'];
     $totalItems = count($machine['items']);
     $filledCount = 0;
     $emptyCount = 0;
@@ -278,9 +285,21 @@ foreach ($byMachine as $may => $machine) {
         }
         $filledCount++;
         $snLower = mb_strtolower($sn, 'UTF-8');
+        
+        $typeNorm = mb_strtolower($it['type'], 'UTF-8');
+        // 1. Kiểm tra trùng lặp trong file Excel (theo từng loại linh kiện)
+        if (isset($seenSerialsInExcel[$typeNorm][$snLower])) {
+            $prev = $seenSerialsInExcel[$typeNorm][$snLower];
+            jimport_exit(['success' => false,
+                'message' => "Lỗi trùng lặp Serial: Số Serial \"$sn\" bị nhập trùng ở Máy $may - $cfg và Máy {$prev['may']} - {$prev['cfg']} (Loại: {$it['type']}). Mỗi Serial chỉ được dùng cho một linh kiện duy nhất!"
+            ]);
+        }
+        $seenSerialsInExcel[$typeNorm][$snLower] = ['may' => $may, 'cfg' => $cfg, 'type' => $it['type']];
+
+        // 2. Kiểm tra tồn tại trong DB của đơn hàng
         if (!isset($existingSerials[$snLower])) {
             jimport_exit(['success' => false,
-                'message' => "Lỗi Máy $may ({$it['type']}): Serial \"$sn\" không khớp với dữ liệu đã nhập trong đơn hàng #$order_id. Vui lòng kiểm tra lại!"
+                'message' => "Lỗi Máy $may - $cfg ({$it['type']}): Serial \"$sn\" không khớp với dữ liệu đã nhập trong đơn hàng #$order_id. Vui lòng kiểm tra lại!"
             ]);
         }
     }
@@ -288,57 +307,61 @@ foreach ($byMachine as $may => $machine) {
     // Ít nhất phải có 1 linh kiện được điền serial trong máy
     if ($filledCount === 0) {
         jimport_exit(['success' => false,
-            'message' => "Lỗi: Máy $may trong file Excel chưa điền serial nào! Vui lòng cập nhật ít nhất 1 serial cho máy này trước khi import."
+            'message' => "Lỗi: Máy $may - $cfg trong file Excel chưa điền serial nào! Vui lòng cập nhật ít nhất 1 serial cho máy này trước khi import."
         ]);
     }
 }
 
 // Kiểm tra IMEI/IMER trong file phải khớp với DB của đơn hàng
-foreach ($byMachine as $may => $machine) {
+foreach ($byMachine as $mayKey => $machine) {
+    $may = $machine['so_may'];
+    $cfg = $machine['cfg_name'];
     $imeiExcel = $machine['imei'];
     if ($imeiExcel === '') {
         jimport_exit(['success' => false,
-            'message' => "Lỗi Máy $may: Chưa điền số IMEI/IMER! Bắt buộc phải có IMEI/IMER để kiểm tra."
+            'message' => "Lỗi Máy $may - $cfg: Chưa điền số IMEI/IMER! Bắt buộc phải có IMEI/IMER để kiểm tra."
         ]);
     }
     $imeiLower = mb_strtolower($imeiExcel, 'UTF-8');
 
-    // Kiểm tra IMEI tồn tại trong đơn hàng
+    // 1. Kiểm tra IMEI trùng với linh kiện khác trong file Excel
+    if (isset($seenSerialsInExcel['imei'][$imeiLower])) {
+        $prev = $seenSerialsInExcel['imei'][$imeiLower];
+        jimport_exit(['success' => false,
+            'message' => "Lỗi trùng lặp Serial: Số IMEI/IMER \"$imeiExcel\" của Máy $may - $cfg bị trùng với một Serial đã nhập ở Máy {$prev['may']} - {$prev['cfg']}. Mỗi IMEI/IMER phải là duy nhất!"
+        ]);
+    }
+    $seenSerialsInExcel['imei'][$imeiLower] = ['may' => $may, 'cfg' => $cfg, 'type' => 'IMEI'];
+
+    // 2. Kiểm tra IMEI tồn tại trong đơn hàng
     if (!isset($existingSerials[$imeiLower])) {
         jimport_exit(['success' => false,
-            'message' => "Lỗi Máy $may: IMEI/IMER \"$imeiExcel\" không khớp với dữ liệu đã nhập trong đơn hàng #$order_id. Vui lòng kiểm tra lại!"
+            'message' => "Lỗi Máy $may - $cfg: IMEI/IMER \"$imeiExcel\" không khớp với dữ liệu đã nhập trong đơn hàng #$order_id. Vui lòng kiểm tra lại!"
         ]);
     }
 
-    // Kiểm tra IMEI gán đúng số máy (nếu DB đã gán so_may cho IMEI này)
-    $dbImeiForMay = $dbImeiRows[$may] ?? [];
-    if (!empty($dbImeiForMay) && !in_array($imeiLower, $dbImeiForMay) && !in_array($imeiLower, $allOrderImeiSerials)) {
-        jimport_exit(['success' => false,
-            'message' => "Lỗi Máy $may: IMEI/IMER \"$imeiExcel\" đã được gán cho máy khác trong đơn hàng #$order_id. Vui lòng kiểm tra lại!"
-        ]);
-    }
+    // Bỏ qua kiểm tra IMEI gán đúng số máy vì so_may là cục bộ, dễ gây lỗi trùng lặp khi có nhiều cấu hình
 }
 
 // Kiểm tra tổng số máy trong file Excel phải khớp với DB
 $excelMachineCount = count($byMachine);
 $dbMachineCount = 0;
 try {
-    // Đếm số máy thực tế trong DB (dựa trên so_may đã gán)
-    $stMayCount = $pdo->prepare(
-        "SELECT COUNT(DISTINCT so_may) FROM chitiet_donhang
-         WHERE id_donhang = ? AND so_may IS NOT NULL AND so_may > 0"
+    // Luôn đếm tổng số máy bằng cách đếm CPU (hoặc MAIN)
+    $stCpu = $pdo->prepare(
+        "SELECT COUNT(*) FROM chitiet_donhang
+         WHERE id_donhang = ? AND UPPER(loai_linhkien) = 'CPU'"
     );
-    $stMayCount->execute([$order_id]);
-    $dbMachineCount = (int)$stMayCount->fetchColumn();
+    $stCpu->execute([$order_id]);
+    $dbMachineCount = (int)$stCpu->fetchColumn();
 
-    // Nếu chưa gán so_may thì tính từ CPU/MAIN
     if ($dbMachineCount === 0) {
-        $stCpu = $pdo->prepare(
+        $stMain = $pdo->prepare(
             "SELECT COUNT(*) FROM chitiet_donhang
-             WHERE id_donhang = ? AND UPPER(loai_linhkien) IN ('CPU','MAIN','MAINBOARD')"
+             WHERE id_donhang = ? AND UPPER(loai_linhkien) IN ('MAIN','MAINBOARD')"
         );
-        $stCpu->execute([$order_id]);
-        $dbMachineCount = (int)$stCpu->fetchColumn();
+        $stMain->execute([$order_id]);
+        $dbMachineCount = (int)$stMain->fetchColumn();
     }
 } catch (PDOException $e) {}
 
@@ -348,29 +371,7 @@ if ($dbMachineCount > 0 && $excelMachineCount !== $dbMachineCount) {
     ]);
 }
 
-// Kiểm tra từng số máy trong file phải hợp lệ
-foreach ($byMachine as $may => $machine) {
-    if ($dbMachineCount > 0 && ((int)$may < 1 || (int)$may > $dbMachineCount)) {
-        jimport_exit(['success' => false,
-            'message' => "Lỗi: Số máy $may trong file Excel không hợp lệ. Đơn hàng #$order_id chỉ có máy từ 1 đến $dbMachineCount."
-        ]);
-    }
-}
-
-// Kiểm tra file Excel phải có đủ tất cả các máy (không được thiếu máy nào)
-if ($dbMachineCount > 0) {
-    $missingMachines = [];
-    for ($m = 1; $m <= $dbMachineCount; $m++) {
-        if (!isset($byMachine[$m])) {
-            $missingMachines[] = "Máy $m";
-        }
-    }
-    if (!empty($missingMachines)) {
-        jimport_exit(['success' => false,
-            'message' => "Lỗi: File Excel chưa cập nhật đủ số máy! Thiếu: " . implode(', ', $missingMachines) . ". Đơn hàng #$order_id có $dbMachineCount máy, vui lòng cập nhật đầy đủ rồi import lại."
-        ]);
-    }
-}
+// Không cần kiểm tra may < 1 || may > dbMachineCount nữa vì mỗi cấu hình có số máy riêng
 
 
 // -------------------------------------------------------
@@ -379,7 +380,8 @@ if ($dbMachineCount > 0) {
 try {
     $pdo->beginTransaction();
 
-    foreach ($byMachine as $may => $machine) {
+    foreach ($byMachine as $mayKey => $machine) {
+        $may = $machine['so_may'];
         $imeiExcel = $machine['imei'];
 
         // Ghi serial từng linh kiện
@@ -403,34 +405,61 @@ try {
             $kw_likes  = array_map(fn($k) => '%' . $k . '%', $keywords);
             $ph        = implode(' OR ', array_fill(0, count($keywords), 'LOWER(loai_linhkien) LIKE ?'));
 
-            // Ưu tiên 1
-            $sqlAll = "SELECT id_ct FROM chitiet_donhang
+            // Ưu tiên 1: Khớp so_may, type, ten_cauhinh, ten_linhkien
+            $sql1 = "SELECT id_ct FROM chitiet_donhang
                        WHERE id_donhang = ? AND so_may = ? AND ($ph)
-                         AND ten_cauhinh LIKE ?
+                         AND ten_cauhinh LIKE ? AND LOWER(TRIM(ten_linhkien)) = LOWER(TRIM(?))
+                         AND (linhkien_chon = ? OR linhkien_chon IS NULL OR linhkien_chon = '')
                        ORDER BY id_ct ASC";
-            $stAll = $pdo->prepare($sqlAll);
-            $stAll->execute(array_merge([$order_id, $may], $kw_likes, [$cfgLike]));
-            $matchedRows = $stAll->fetchAll(PDO::FETCH_COLUMN);
+            $st1 = $pdo->prepare($sql1);
+            $st1->execute(array_merge([$order_id, $may], $kw_likes, [$cfgLike, $modelName, $cfgNorm]));
+            $matchedRows = $st1->fetchAll(PDO::FETCH_COLUMN);
 
-            // Ưu tiên 2
+            // Ưu tiên 2: Khớp so_may, type, ten_cauhinh (bỏ qua ten_linhkien để tương thích ngược)
             if (empty($matchedRows)) {
-                $sqlFb = "SELECT id_ct FROM chitiet_donhang
-                          WHERE id_donhang = ? AND (so_may IS NULL OR so_may = 0) AND ($ph)
-                            AND ten_cauhinh LIKE ?
-                          ORDER BY id_ct ASC";
-                $stFb = $pdo->prepare($sqlFb);
-                $stFb->execute(array_merge([$order_id], $kw_likes, [$cfgLike]));
-                $matchedRows = $stFb->fetchAll(PDO::FETCH_COLUMN);
+                $sql2 = "SELECT id_ct FROM chitiet_donhang
+                           WHERE id_donhang = ? AND so_may = ? AND ($ph)
+                             AND ten_cauhinh LIKE ?
+                             AND (linhkien_chon = ? OR linhkien_chon IS NULL OR linhkien_chon = '')
+                           ORDER BY id_ct ASC";
+                $st2 = $pdo->prepare($sql2);
+                $st2->execute(array_merge([$order_id, $may], $kw_likes, [$cfgLike, $cfgNorm]));
+                $matchedRows = $st2->fetchAll(PDO::FETCH_COLUMN);
             }
 
-            // Ưu tiên 3
+            // Ưu tiên 3: Khớp chưa gán so_may, type, ten_cauhinh, ten_linhkien
             if (empty($matchedRows)) {
-                $sqlFb2 = "SELECT id_ct FROM chitiet_donhang
+                $sql3 = "SELECT id_ct FROM chitiet_donhang
+                          WHERE id_donhang = ? AND (so_may IS NULL OR so_may = 0) AND ($ph)
+                            AND ten_cauhinh LIKE ? AND LOWER(TRIM(ten_linhkien)) = LOWER(TRIM(?))
+                            AND (linhkien_chon = ? OR linhkien_chon IS NULL OR linhkien_chon = '')
+                          ORDER BY id_ct ASC";
+                $st3 = $pdo->prepare($sql3);
+                $st3->execute(array_merge([$order_id], $kw_likes, [$cfgLike, $modelName, $cfgNorm]));
+                $matchedRows = $st3->fetchAll(PDO::FETCH_COLUMN);
+            }
+
+            // Ưu tiên 4: Khớp chưa gán so_may, type, ten_cauhinh
+            if (empty($matchedRows)) {
+                $sql4 = "SELECT id_ct FROM chitiet_donhang
+                          WHERE id_donhang = ? AND (so_may IS NULL OR so_may = 0) AND ($ph)
+                            AND ten_cauhinh LIKE ?
+                            AND (linhkien_chon = ? OR linhkien_chon IS NULL OR linhkien_chon = '')
+                          ORDER BY id_ct ASC";
+                $st4 = $pdo->prepare($sql4);
+                $st4->execute(array_merge([$order_id], $kw_likes, [$cfgLike, $cfgNorm]));
+                $matchedRows = $st4->fetchAll(PDO::FETCH_COLUMN);
+            }
+
+            // Ưu tiên 5: Khớp chưa gán so_may, type (Dự phòng cuối cùng)
+            if (empty($matchedRows)) {
+                $sql5 = "SELECT id_ct FROM chitiet_donhang
                            WHERE id_donhang = ? AND (so_may IS NULL OR so_may = 0) AND ($ph)
+                           AND (linhkien_chon = ? OR linhkien_chon IS NULL OR linhkien_chon = '')
                            ORDER BY id_ct ASC";
-                $stFb2 = $pdo->prepare($sqlFb2);
-                $stFb2->execute(array_merge([$order_id], $kw_likes));
-                $matchedRows = $stFb2->fetchAll(PDO::FETCH_COLUMN);
+                $st5 = $pdo->prepare($sql5);
+                $st5->execute(array_merge([$order_id], $kw_likes, [$cfgNorm]));
+                $matchedRows = $st5->fetchAll(PDO::FETCH_COLUMN);
             }
 
             $upd = $pdo->prepare("UPDATE chitiet_donhang

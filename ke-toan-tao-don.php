@@ -192,7 +192,7 @@ require "config.php";
                   </div>
                </div>
 
-              <!-- CASE -->
+               <!-- CASE -->
                <div class="config-row">
                   <label>CASE</label>
                   <div class="config-field-main">
