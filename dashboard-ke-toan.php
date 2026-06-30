@@ -59,12 +59,19 @@
             <?php
             // --- LẤY DỮ LIỆU THẬT TỪ DATABASE ---
                $orders = [];
+            // Linh kiện co_serial=0 (Không serial) luôn tính là đã hoàn thành
+            $serial_type_filter = "UPPER(c.loai_linhkien) NOT IN ('WIN', 'CASE', 'FAN', 'IMEI', 'IMER')";
+            $serial_need_filter = "{$serial_type_filter} AND IFNULL(c.co_serial, 1) = 1";
+            $serial_done_filter = "{$serial_type_filter} AND (IFNULL(c.co_serial, 1) = 0 OR (c.so_serial IS NOT NULL AND c.so_serial != ''))";
             if ($pdo) {
                try {
+                  try { $pdo->query("SELECT co_serial FROM chitiet_donhang LIMIT 0"); }
+                  catch (PDOException $eCo) { $pdo->exec("ALTER TABLE chitiet_donhang ADD COLUMN co_serial TINYINT(1) NOT NULL DEFAULT 1 AFTER so_may"); }
+
                   // Truy vấn đơn hàng kèm thông tin tóm tắt và trạng thái thực tế
                   $sql = "SELECT d.*, 
-                                 (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN', 'CASE', 'FAN', 'IMEI', 'IMER')) as total_items,
-                                 (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN', 'CASE', 'FAN', 'IMEI', 'IMER') AND c.so_serial IS NOT NULL AND c.so_serial != '') as done_items
+                                 (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND {$serial_type_filter}) as total_items,
+                                 (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND {$serial_done_filter}) as done_items
                           FROM donhang d
                           ORDER BY d.ngay_tao DESC";
                   $stmt = $pdo->query($sql);

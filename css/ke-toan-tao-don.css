@@ -1010,14 +1010,12 @@ textarea#note:focus {
     color: var(--danger);
 }
 
-/* Khi chọn "Không serial": làm mờ phần nhập tên */
-.config-row.no-serial-mode .config-field-main {
-    opacity: 0.5;
-    pointer-events: none;
-}
-
-.config-row.no-serial-mode .config-field-qty {
-    opacity: 0.5;
+/* Khi chọn "Không serial": không làm mờ, không khóa tương tác */
+.serial-mode-toggle {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    align-items: center;
 }
 
 /* ==========================================================================

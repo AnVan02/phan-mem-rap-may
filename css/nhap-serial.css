@@ -38,9 +38,10 @@
    color: var(--text-main);
    border: 1.5px solid var(--primary);
    border-radius: 6px;
-   padding: 2px 8px;
+   padding: 4px 10px;
    outline: none;
-   min-width: 180px;
+   width: 100%;
+   flex: 1;
    background: #f0f5ff;
 }
 
@@ -508,6 +509,7 @@ body {
    border-color: var(--primary);
    box-shadow: 0 0 0 3px rgba(37, 99, 235, .08);
 }
+
 
 /* Textarea footer row */
 .textarea-footer {

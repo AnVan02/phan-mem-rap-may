@@ -47,7 +47,7 @@ if ($pdo) {
    }
 }
 $display_config_name = !empty($config_names) ? implode(", ", $config_names) : "Cấu hình mặc định";
-// Chỉ đếm những linh kiện cần nhập serial (co_serial = 1)
+// Chỉ đếm slot cần nhập serial; co_serial=0 được coi hoàn thành (không tính vào tổng)
 $total_all_target = 0;
 foreach ($components_db as $_c) {
     if ((int)($_c['co_serial'] ?? 1) !== 0) $total_all_target++;
@@ -291,7 +291,7 @@ const currentOrderId = <?php echo $order_id; ?>;
                             </div>
                             <textarea class="serial-textarea" id="textarea-<?php echo $global_idx; ?>"
                                 placeholder="<?php echo $is_no_serial ? 'Linh kiện này không cần nhập serial' : 'Nhập serial cho ' . htmlspecialchars($type) . '...'; ?>"
-                                <?php echo $is_done_auto ? 'readonly style=" cursor: not-allowed;"' : ''; ?>
+                                <?php echo $is_done_auto ? 'readonly' : ''; ?>
                                 rows="6"><?php echo isset($group_item['serials']) ? htmlspecialchars(implode("\n", $group_item['serials'])) : ''; ?></textarea>
                             <div class="textarea-footer">
                                 <span class="auto-filter-note" style="font-size: 15px;"> Hệ thống sẽ tự động loại bỏ

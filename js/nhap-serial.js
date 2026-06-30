@@ -490,7 +490,9 @@ document.addEventListener('DOMContentLoaded', () => {
          }
       });
 
-      const pct = totalAll > 0 ? Math.round((totalDone / totalAll) * 100) : 0;
+      const pct = totalAll > 0
+         ? Math.round((totalDone / totalAll) * 100)
+         : (!hasIncomplete && !hasExcessive ? 100 : 0);
 
       const percentEl = document.getElementById('overallPercent');
       const fillEl = document.getElementById('overallProgressFill');

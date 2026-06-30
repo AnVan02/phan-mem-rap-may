@@ -15,15 +15,22 @@ $stats = ['total' => 0, 'pending' => 0, 'processing' => 0, 'done' => 0];
 
 if ($pdo) {
     try {
+        try { $pdo->query("SELECT co_serial FROM chitiet_donhang LIMIT 0"); }
+        catch (PDOException $eCo) { $pdo->exec("ALTER TABLE chitiet_donhang ADD COLUMN co_serial TINYINT(1) NOT NULL DEFAULT 1 AFTER so_may"); }
+
+        $serial_type_filter = "UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER')";
+        $serial_need_filter = "{$serial_type_filter} AND IFNULL(c.co_serial, 1) = 1";
+        $serial_done_filter = "{$serial_type_filter} AND (IFNULL(c.co_serial, 1) = 0 OR (c.so_serial IS NOT NULL AND c.so_serial != ''))";
+
         // Tính toán thống kê - Chỉ tính những đơn đã có ít nhất 1 serial (để đồng bộ với danh sách hiển thị)
         $sql_stats = "SELECT 
                         COUNT(*) as total,
-                        SUM(CASE WHEN (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND (c.so_serial IS NULL OR c.so_serial = '')) > 0 
-                                  AND (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND (c.so_serial IS NOT NULL AND c.so_serial != '')) > 0 THEN 1 ELSE 0 END) as processing,
-                        SUM(CASE WHEN (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND (c.so_serial IS NOT NULL AND c.so_serial != '')) = (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER')) 
-                                  AND (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER')) > 0 THEN 1 ELSE 0 END) as done
+                        SUM(CASE WHEN (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND {$serial_need_filter} AND (c.so_serial IS NULL OR c.so_serial = '')) > 0 
+                                  AND (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND {$serial_done_filter}) > 0 THEN 1 ELSE 0 END) as processing,
+                        SUM(CASE WHEN (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND {$serial_done_filter}) = (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND {$serial_type_filter}) 
+                                  AND (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND {$serial_type_filter}) > 0 THEN 1 ELSE 0 END) as done
                       FROM donhang d
-                      WHERE (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND c.so_serial IS NOT NULL AND c.so_serial != '') > 0";
+                      WHERE (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND {$serial_done_filter}) > 0";
         $stats_res = $pdo->query($sql_stats)->fetch();
         if ($stats_res) {
             $stats = $stats_res;
@@ -33,9 +40,9 @@ if ($pdo) {
 
         // Lấy danh sách đơn hàng - Chỉ lấy đơn khi đã nhập XONG số Serial cho toàn bộ linh kiện
         $sql_all = "SELECT d.*, 
-                           (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER')) as total_items,
-                           (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND c.so_serial IS NOT NULL AND c.so_serial != '') as done_items,
-                           (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND c.user_id_save IS NOT NULL AND c.user_id_save > 0) as tech_done_items
+                           (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND {$serial_type_filter}) as total_items,
+                           (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND {$serial_done_filter}) as done_items,
+                           (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND {$serial_type_filter} AND (IFNULL(c.co_serial, 1) = 0 OR (c.user_id_save IS NOT NULL AND c.user_id_save > 0))) as tech_done_items
                     FROM donhang d
                     HAVING total_items > 0 AND total_items = done_items
                     ORDER BY d.ngay_tao DESC";
@@ -43,12 +50,12 @@ if ($pdo) {
 
         // Lấy tối đa 3 đơn hàng cần ưu tiên (Cũng chỉ lấy đơn đã có Serial)
         $sql_priority = "SELECT d.*, 
-                               (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER')) as total_items,
-                               (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND c.so_serial IS NOT NULL AND c.so_serial != '') as done_items,
-                               (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND c.user_id_save IS NOT NULL AND c.user_id_save > 0) as tech_done_items
+                               (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND {$serial_type_filter}) as total_items,
+                               (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND {$serial_done_filter}) as done_items,
+                               (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND {$serial_type_filter} AND (IFNULL(c.co_serial, 1) = 0 OR (c.user_id_save IS NOT NULL AND c.user_id_save > 0))) as tech_done_items
                         FROM donhang d
-                        WHERE (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND c.so_serial IS NOT NULL AND c.so_serial != '') > 0
-                          AND (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND (c.user_id_save IS NULL OR c.user_id_save = 0)) > 0
+                        WHERE (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND {$serial_done_filter}) > 0
+                          AND (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND {$serial_need_filter} AND (c.user_id_save IS NULL OR c.user_id_save = 0)) > 0
                         ORDER BY d.ngay_tao ASC
                         LIMIT 3";
         $priority_orders = $pdo->query($sql_priority)->fetchAll();

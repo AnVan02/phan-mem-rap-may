@@ -420,10 +420,6 @@ document.addEventListener("DOMContentLoaded", function () {
             let mainContent = `
               <div class="row-label-wrap">
                 <label>${rowData.label}</label>
-                <div class="serial-mode-toggle">
-                  <button type="button" class="smg-btn${hasSerial === 1 ? ' smg-active' : ''}" data-val="1"><i class="fa-solid fa-barcode"></i> Có serial</button>
-                  <button type="button" class="smg-btn${hasSerial === 0 ? ' smg-active' : ''}" data-val="0"><i class="fa-solid fa-ban"></i> Không serial</button>
-                </div>
               </div>
               <div class="config-field-main">`;
             rowData.mainInputs.forEach((val, i) => {
@@ -442,20 +438,33 @@ document.addEventListener("DOMContentLoaded", function () {
                 mainContent += `<div class="multi-field-row" style="margin-top: 10px;"><div class="input-wrapper"><input type="text" list="${listId}" placeholder="${placeholder}" value="${val}"><button class="btn-input-toggle" type="button"><i class="fa-solid fa-chevron-down"></i></button></div></div>`;
               }
             });
+
+            const toggleHtml = `
+                <div class="serial-mode-toggle">
+                  <button type="button" class="smg-btn${hasSerial === 1 ? ' smg-active' : ''}" data-val="1"><i class="fa-solid fa-barcode"></i> Có serial</button>
+                  <button type="button" class="smg-btn${hasSerial === 0 ? ' smg-active' : ''}" data-val="0"><i class="fa-solid fa-ban"></i> Không serial</button>
+                </div>`;
+
             if (
               rowData.mainInputs.length > 1 ||
               rowData.label.toLowerCase() === "nguồn"
             ) {
               // Nếu có nhiều dòng hoặc là phần Nguồn (thường có sẵn nút xóa trong mẫu)
               mainContent += `
-                                      <div class="link-group">
+                                      <div class="link-group" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                                           <button class="btn-link" type="button">+ Thêm loại ${rowData.label} khác</button>
                                           <span class="header-sep">|</span>
                                           <button class="btn-link danger" type="button">Xoá</button>
+                                          ${toggleHtml}
                                       </div>
                                   `;
             } else {
-              mainContent += `<button class="btn-link" type="button">+ Thêm loại ${rowData.label} khác</button>`;
+              mainContent += `
+                  <div class="link-group" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                      <button class="btn-link" type="button">+ Thêm loại ${rowData.label} khác</button>
+                      ${toggleHtml}
+                  </div>
+              `;
             }
             mainContent += `</div><div class="config-field-qty"><span class="qty-label">SỐ LƯỢNG</span>`;
 
