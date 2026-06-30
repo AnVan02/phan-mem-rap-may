@@ -959,6 +959,68 @@ textarea#note:focus {
 }
 
 /* ==========================================================================
+   SERIAL MODE TOGGLE (Có serial / Không serial)
+   ========================================================================== */
+.row-label-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 130px;
+    flex-shrink: 0;
+}
+
+.serial-mode-toggle {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.smg-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    border-radius: 6px;
+    border: 1.5px solid var(--border);
+    background: #f8fafc;
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s;
+    white-space: nowrap;
+    font-family: var(--font-family);
+    line-height: 1.4;
+}
+
+.smg-btn:hover {
+    border-color: #cbd5e1;
+    color: #64748b;
+}
+
+.smg-btn.smg-active[data-val="1"] {
+    background: #eff6ff;
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.smg-btn.smg-active[data-val="0"] {
+    background: #fef2f2;
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+/* Khi chọn "Không serial": làm mờ phần nhập tên */
+.config-row.no-serial-mode .config-field-main {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.config-row.no-serial-mode .config-field-qty {
+    opacity: 0.5;
+}
+
+/* ==========================================================================
     EXTRA SMALL (MAX-WIDTH: 480PX)
    ========================================================================== */
 @media (max-width: 480px) {

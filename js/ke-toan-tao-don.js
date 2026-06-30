@@ -37,6 +37,15 @@ document.addEventListener("DOMContentLoaded", function () {
           }
         });
 
+        // Reset trạng thái toggle serial về mặc định "Có serial"
+        newGroup.querySelectorAll(".config-row").forEach(r => {
+          r.classList.remove("no-serial-mode");
+          const btns = r.querySelectorAll(".smg-btn");
+          btns.forEach(b => b.classList.remove("smg-active"));
+          const hasBtn = r.querySelector('.smg-btn[data-val="1"]');
+          if (hasBtn) hasBtn.classList.add("smg-active");
+        });
+
         // Xoá các dòng linh kiện phụ (nếu có ở nhóm bị clone)
         newGroup.querySelectorAll(".multi-field-row").forEach(row => row.remove());
         newGroup.querySelectorAll(".config-field-qty div").forEach(div => {
@@ -149,6 +158,21 @@ document.addEventListener("DOMContentLoaded", function () {
       if (allMultiRows.length > 0) {
         const lastInput = allMultiRows[allMultiRows.length - 1].querySelector("input");
         if (lastInput) lastInput.focus();
+      }
+    });
+
+    // 5b. Xử lý toggle "Có serial / Không serial"
+    group.addEventListener("click", function (e) {
+      const smgBtn = e.target.closest(".smg-btn");
+      if (smgBtn) {
+        e.stopPropagation();
+        const toggle = smgBtn.closest(".serial-mode-toggle");
+        toggle.querySelectorAll(".smg-btn").forEach(b => b.classList.remove("smg-active"));
+        smgBtn.classList.add("smg-active");
+        const row = smgBtn.closest(".config-row");
+        if (row) row.classList.toggle("no-serial-mode", smgBtn.dataset.val === "0");
+        saveFormState();
+        return;
       }
     });
 
@@ -331,10 +355,13 @@ document.addEventListener("DOMContentLoaded", function () {
           row.querySelectorAll('.config-field-qty input[type="number"]'),
         ).map((i) => i.value.replace(/\s+/g, " ").trim());
 
+        const toggle = row.querySelector('.serial-mode-toggle .smg-btn.smg-active');
+        const hasSerial = toggle ? parseInt(toggle.dataset.val) : 1;
         groupData.rows.push({
           label,
           mainInputs,
           qtyInputs,
+          hasSerial,
         });
       });
       orderData.groups.push(groupData);
@@ -388,8 +415,17 @@ document.addEventListener("DOMContentLoaded", function () {
           const grid = groupDiv.querySelector(".config-grid");
           groupData.rows.forEach((rowData) => {
             const rowDiv = document.createElement("div");
-            rowDiv.className = "config-row";
-            let mainContent = `<label>${rowData.label}</label><div class="config-field-main">`;
+            const hasSerial = rowData.hasSerial !== undefined ? parseInt(rowData.hasSerial) : 1;
+            rowDiv.className = "config-row" + (hasSerial === 0 ? " no-serial-mode" : "");
+            let mainContent = `
+              <div class="row-label-wrap">
+                <label>${rowData.label}</label>
+                <div class="serial-mode-toggle">
+                  <button type="button" class="smg-btn${hasSerial === 1 ? ' smg-active' : ''}" data-val="1"><i class="fa-solid fa-barcode"></i> Có serial</button>
+                  <button type="button" class="smg-btn${hasSerial === 0 ? ' smg-active' : ''}" data-val="0"><i class="fa-solid fa-ban"></i> Không serial</button>
+                </div>
+              </div>
+              <div class="config-field-main">`;
             rowData.mainInputs.forEach((val, i) => {
               const labelLower = rowData.label
                 ? rowData.label.trim().toLowerCase()
@@ -491,7 +527,9 @@ document.addEventListener("DOMContentLoaded", function () {
           groupHasContent = true;
         }
 
-        groupData.rows.push({ label, mainInputs, qtyInputs });
+        const toggle = row.querySelector('.serial-mode-toggle .smg-btn.smg-active');
+        const hasSerial = toggle ? parseInt(toggle.dataset.val) : 1;
+        groupData.rows.push({ label, mainInputs, qtyInputs, hasSerial });
       });
 
       if (groupHasContent) {

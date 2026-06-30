@@ -96,8 +96,6 @@ foreach ($blocksByCol as $col => $bIdxList) {
             $modelCell = trim((string)($row[$col + 1] ?? ''));
             $serialCell= trim((string)($row[$col + 2] ?? ''));
 
-            // Reset model khi chuyển sang loại linh kiện mới (tránh kế thừa sai)
-            if ($typeCell !== '' && $typeCell !== $lastType) $lastModel = '';
             if ($typeCell  !== '') $lastType  = $typeCell;
             if ($modelCell !== '') $lastModel = $modelCell;
 
@@ -108,7 +106,7 @@ foreach ($blocksByCol as $col => $bIdxList) {
             foreach ($row as $v) { if (trim((string)($v ?? '')) !== '') { $hasData = true; break; } }
             if (!$hasData) { $lastType = $lastModel = ''; break; }
 
-            $block['items'][] = ['type' => $type, 'model' => $lastModel, 'model_fresh' => ($modelCell !== ''), 'serial' => $serialCell];
+            $block['items'][] = ['type' => $type, 'model' => $lastModel, 'serial' => $serialCell];
         }
         unset($block);
     }
@@ -169,11 +167,6 @@ function getTypeKeywordsForImport(string $displayType): array {
     ];
     $key = mb_strtolower(trim($displayType), 'UTF-8');
     return $map[$key] ?? [$key];
-}
-function isSerialRequired(string $type): bool {
-    $type = mb_strtolower(trim($type), 'UTF-8');
-    $noSerialTypes = ['case', 'vỏ case', 'vo case'];
-    return !in_array($type, $noSerialTypes, true);
 }
 
 // Hàm tìm và cập nhật serial cho 1 linh kiện
@@ -256,27 +249,6 @@ foreach ($machineBlocks as $b) {
 }
 
 // -------------------------------------------------------
-// KIỂM TRA: tên linh kiện trong file Excel phải hợp lệ
-// -------------------------------------------------------
-$validImportTypes = [
-    'cpu', 'mainboard', 'main', 'ram', 'ssd', 'hdd',
-    'đồ họa', 'vga', 'nguồn', 'psu', 'case',
-    'tản', 'fan', 'hệ điều hành', 'phần mềm',
-    'win', 'windows', 'key board', 'mouse', 'lcd',
-];
-
-foreach ($byMachine as $machine) {
-    foreach ($machine['items'] as $it) {
-        $typeKey = mb_strtolower(trim($it['type']), 'UTF-8');
-        if (!in_array($typeKey, $validImportTypes, true)) {
-            jimport_exit(['success' => false,
-                'message' => "❌ Tên linh kiện \"" . $it['type'] . "\" tại Máy {$machine['so_may']} ({$machine['cfg_name']}) không được nhận dạng. Vui lòng kiểm tra lại tên trong cột \"Thành Phần\" của file Excel.\nCác tên hợp lệ: CPU, Mainboard, Main, RAM, SSD, HDD, Đồ họa, VGA, Nguồn, PSU, Case, Tản, Fan, Hệ điều hành, Phần mềm, Win, Windows, Key Board, Mouse, LCD."
-            ]);
-        }
-    }
-}
-
-// -------------------------------------------------------
 // KIỂM TRA: serial trong file Excel phải khớp với DB
 // -------------------------------------------------------
 
@@ -293,71 +265,6 @@ try {
     }
 } catch (PDOException $e) {
     jimport_exit(['success' => false, 'message' => 'Lỗi tải dữ liệu: ' . $e->getMessage()]);
-}
-
-// Tải tên linh kiện (model) từ DB để kiểm tra khớp với Excel
-$dbTenLinhKien = []; // loai_lower => [ten_lower => true]
-try {
-    $sTen = $pdo->prepare(
-        "SELECT LOWER(TRIM(loai_linhkien)) as loai, LOWER(TRIM(ten_linhkien)) as ten
-         FROM chitiet_donhang WHERE id_donhang = ?
-         AND ten_linhkien IS NOT NULL AND ten_linhkien <> ''"
-    );
-    $sTen->execute([$order_id]);
-    foreach ($sTen->fetchAll(PDO::FETCH_ASSOC) as $r) {
-        $dbTenLinhKien[$r['loai']][$r['ten']] = true;
-    }
-} catch (PDOException $e) {
-    jimport_exit(['success' => false, 'message' => 'Lỗi tải dữ liệu: ' . $e->getMessage()]);
-}
-
-// Kiểm tra tên model linh kiện trong Excel phải khớp với DB của đơn hàng
-foreach ($byMachine as $machine) {
-    foreach ($machine['items'] as $it) {
-        $keywords  = getTypeKeywordsForImport($it['type']);
-        $modelName = trim($it['model']);
-
-        // Hàm kiểm tra loại linh kiện có tên model trong DB không
-        $typeHasModels = false;
-        foreach ($keywords as $kw) {
-            foreach ($dbTenLinhKien as $dbLoai => $tenMap) {
-                if (str_contains($dbLoai, $kw) && !empty($tenMap)) {
-                    $typeHasModels = true;
-                    break 2;
-                }
-            }
-        }
-
-        if ($modelName === '') {
-            // Excel không có tên model — báo lỗi nếu DB yêu cầu model
-            if ($typeHasModels) {
-                jimport_exit(['success' => false,
-                    'message' => "❌ Thiếu tên linh kiện ({$it['type']}) tại Máy {$machine['so_may']} ({$machine['cfg_name']}). Vui lòng điền tên model trong file Excel."
-                ]);
-            }
-            continue;
-        }
-
-        // Model có giá trị — kiểm tra khớp với DB
-        if (!$typeHasModels) continue; // DB không có model cho loại này, bỏ qua
-
-        $modelLower = mb_strtolower($modelName, 'UTF-8');
-        $foundInDb  = false;
-        foreach ($keywords as $kw) {
-            foreach ($dbTenLinhKien as $dbLoai => $tenMap) {
-                if (str_contains($dbLoai, $kw) && isset($tenMap[$modelLower])) {
-                    $foundInDb = true;
-                    break 2;
-                }
-            }
-        }
-
-        if (!$foundInDb) {
-            jimport_exit(['success' => false,
-                'message' => "❌ Tên linh kiện \"$modelName\" ({$it['type']}) tại Máy {$machine['so_may']} ({$machine['cfg_name']}) không khớp với đơn hàng #$order_id. Vui lòng kiểm tra lại tên model trong file Excel."
-            ]);
-        }
-    }
 }
 
 // Kiểm tra từng serial linh kiện trong file

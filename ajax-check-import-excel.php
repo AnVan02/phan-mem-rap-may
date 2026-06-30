@@ -140,6 +140,8 @@ foreach ($blocksByCol as $col => $bIdxList) {
             $serialCell = trim((string)($row[$col + 2]  ?? ''));
 
             // Merged cells trong cột A/B → giữ lại giá trị từ dòng đầu của merge
+            // Reset model khi chuyển sang loại linh kiện mới (tránh kế thừa sai)
+            if ($typeCell !== '' && $typeCell !== $lastType) $lastModel = '';
             if ($typeCell  !== '') $lastType  = $typeCell;
             if ($modelCell !== '') $lastModel = $modelCell;
             $type  = $lastType;
@@ -154,9 +156,10 @@ foreach ($blocksByCol as $col => $bIdxList) {
             if (!$rowHasData) { $lastType = ''; $lastModel = ''; break; }
 
             $block['items'][] = [
-                'type'   => $type,
-                'model'  => $model,
-                'serial' => $serialCell,
+                'type'        => $type,
+                'model'       => $model,
+                'model_fresh' => ($modelCell !== ''),
+                'serial'      => $serialCell,
             ];
         }
         unset($block);
@@ -203,6 +206,20 @@ try {
     $allOrderImeiSerials = $sAll->fetchAll(PDO::FETCH_COLUMN);
 } catch (PDOException $e) {}
 
+// Tên linh kiện (model) từ DB cho đơn hàng — dùng để kiểm tra model trong Excel
+$dbTenLinhKien = []; // loai_lower => [ten_lower => true]
+try {
+    $sTen = $pdo->prepare(
+        "SELECT LOWER(TRIM(loai_linhkien)) as loai, LOWER(TRIM(ten_linhkien)) as ten
+         FROM chitiet_donhang WHERE id_donhang = ?
+         AND ten_linhkien IS NOT NULL AND ten_linhkien <> ''"
+    );
+    $sTen->execute([$order_id]);
+    foreach ($sTen->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $dbTenLinhKien[$r['loai']][$r['ten']] = true;
+    }
+} catch (PDOException $e) {}
+
 // Map tên display từ file xuất → từ khóa loại DB
 $typeMap = [
     'cpu'           => ['cpu'],
@@ -228,6 +245,67 @@ $typeMap = [
     'windows'       => ['win'],
 ];
 
+// Kiểm tra tên loại linh kiện trong file Excel có hợp lệ không
+foreach ($machineBlocks as $block) {
+    foreach ($block['items'] as $it) {
+        $typeKey = mb_strtolower(trim($it['type']), 'UTF-8');
+        if (!array_key_exists($typeKey, $typeMap)) {
+            json_exit(['success' => false,
+                'message' => "❌ Tên linh kiện \"" . $it['type'] . "\" tại Máy {$block['so_may']} không được nhận dạng. Vui lòng kiểm tra lại tên trong cột \"Thành Phần\" của file Excel.\nCác tên hợp lệ: CPU, Mainboard, Main, RAM, SSD, HDD, Đồ họa, VGA, Nguồn, PSU, Case, Tản, Fan, Hệ điều hành, Phần mềm, Win, Windows, Key Board, Mouse, LCD."
+            ]);
+        }
+    }
+}
+
+// Kiểm tra tên model linh kiện trong Excel phải khớp với DB của đơn hàng
+foreach ($machineBlocks as $block) {
+    foreach ($block['items'] as $it) {
+        $typeKey   = mb_strtolower(trim($it['type']), 'UTF-8');
+        $keywords  = $typeMap[$typeKey] ?? [$typeKey];
+        $modelName = trim($it['model']);
+
+        $typeHasModels = false;
+        foreach ($keywords as $kw) {
+            foreach ($dbTenLinhKien as $dbLoai => $tenMap) {
+                if (str_contains($dbLoai, $kw) && !empty($tenMap)) {
+                    $typeHasModels = true;
+                    break 2;
+                }
+            }
+        }
+
+        if ($modelName === '') {
+            // Excel không có tên model — báo lỗi nếu DB yêu cầu model
+            if ($typeHasModels) {
+                json_exit(['success' => false,
+                    'message' => "❌ Thiếu tên linh kiện ({$it['type']}) tại Máy {$block['so_may']}. Vui lòng điền tên model trong file Excel."
+                ]);
+            }
+            continue;
+        }
+
+        // Model có giá trị — kiểm tra khớp với DB
+        if (!$typeHasModels) continue; // DB không có model cho loại này, bỏ qua
+
+        $modelLower = mb_strtolower($modelName, 'UTF-8');
+        $foundInDb  = false;
+        foreach ($keywords as $kw) {
+            foreach ($dbTenLinhKien as $dbLoai => $tenMap) {
+                if (str_contains($dbLoai, $kw) && isset($tenMap[$modelLower])) {
+                    $foundInDb = true;
+                    break 2;
+                }
+            }
+        }
+
+        if (!$foundInDb) {
+            json_exit(['success' => false,
+                'message' => "❌ Tên linh kiện \"$modelName\" ({$it['type']}) tại Máy {$block['so_may']} không khớp với đơn hàng #$order_id. Vui lòng kiểm tra lại tên model trong file Excel."
+            ]);
+        }
+    }
+}
+
 function getDbSerials(array $dbRows, int $so_may, string $displayType): array
 {
     global $typeMap;
@@ -243,6 +321,9 @@ function getDbSerials(array $dbRows, int $so_may, string $displayType): array
     }
     return $result;
 }
+
+// ĐẶT Ở NGOÀI HÀM, phạm vi toàn cục
+$noWarnTypes = ['case', 'tản', 'fan', 'key board', 'mouse', 'lcd'];
 
 // -------------------------------------------------------
 // KIỂM TRA TỪNG BLOCK MÁY

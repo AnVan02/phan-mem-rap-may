@@ -57,6 +57,13 @@ document.addEventListener('DOMContentLoaded', () => {
          const textarea = card.querySelector('.serial-textarea');
          if (!textarea) return;
 
+         // Linh kiện không cần serial: khởi tạo state rỗng và bỏ qua listener
+         if (card.dataset.noSerial === '1') {
+            componentState[id] = { saved: [], target: 0 };
+            updateCardStatus(card, id, 0, 0);
+            return;
+         }
+
          // Chỉ lấy dữ liệu từ PHP đổ ra textarea, KHÔNG dùng localStorage nữa để tránh lỗi lưu đệm cũ
          let serials = parseSerials(textarea.value);
 
@@ -180,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
          }
 
          const type = (card.dataset.type || '').toUpperCase();
-         const isExempt = (type === 'IMEI' || type === 'IMER' || type === 'WIN' || type === 'CASE' || type === 'FAN');
+         const isExempt = card.dataset.noSerial === '1' || (type === 'IMEI' || type === 'IMER' || type === 'WIN' || type === 'CASE' || type === 'FAN');
 
          if (serials.length > target || (hasDuplicate && !isExempt)) {
             detectedEl.style.color = '#ef4444'; // Màu đỏ cảnh báo
@@ -293,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
          });
 
          const type = (card.dataset.type || '').toUpperCase();
-         const isExempt = (type === 'IMEI' || type === 'IMER' || type === 'WIN' || type === 'CASE' || type === 'FAN');
+         const isExempt = card.dataset.noSerial === '1' || (type === 'IMEI' || type === 'IMER' || type === 'WIN' || type === 'CASE' || type === 'FAN');
 
          if (localDuplicates.size > 0 && !isExempt) {
             hasWarning = true;
@@ -359,18 +366,26 @@ document.addEventListener('DOMContentLoaded', () => {
       oldButtons.forEach(b => b.remove());
 
       const type = (card.dataset.type || '').toUpperCase();
-      const isOptional = (type === 'WIN' || type === 'CASE' || type === 'IMEI' || type === 'IMER' || type === 'FAN');
+      const isNoSerial = card.dataset.noSerial === '1';
+      const isOptional = isNoSerial || (type === 'WIN' || type === 'CASE' || type === 'IMEI' || type === 'IMER' || type === 'FAN');
 
-      if (count >= target || (isOptional && count === 0)) {
+      if (isNoSerial || count >= target || (isOptional && count === 0)) {
          // Hoàn thành
          card.classList.add('done');
          statusEl.classList.add('status-done');
 
-         if (isOptional && count === 0) {
+         if (isNoSerial) {
+            // Linh kiện không cần serial: luôn hiện "Không cần serial" màu tím
+            statusEl.textContent = 'Không cần nhập serial';
+            statusEl.style.backgroundColor = '#ede9fe';
+            statusEl.style.color = '#1152D4';
+            statusEl.style.borderColor = '#ddd6fe';
+         } else if (isOptional && count === 0) {
             statusEl.textContent = `Đầy đủ (${target}/${target})`;
             statusEl.style.backgroundColor = '#D1FAE5';
             statusEl.style.color = '#059669';
             statusEl.style.borderColor = '#A7F3D0';
+            statusEl.style.fontWeight = '600';
          } else {
             statusEl.textContent = `Hoàn thành (${count}/${target})`;
             statusEl.style.backgroundColor = '';
@@ -454,7 +469,8 @@ document.addEventListener('DOMContentLoaded', () => {
          const currentCount = textarea ? parseSerials(textarea.value).length : (componentState[id]?.saved?.length || 0);
 
          const type = (card.dataset.type || '').toUpperCase();
-         const isOptional = (type === 'WIN' || type === 'CASE' || type === 'IMEI' || type === 'IMER' || type === 'FAN');
+         const isNoSerial = card.dataset.noSerial === '1';
+         const isOptional = isNoSerial || (type === 'WIN' || type === 'CASE' || type === 'IMEI' || type === 'IMER' || type === 'FAN');
 
          if (!isOptional) {
             totalAll += target;
@@ -539,10 +555,10 @@ document.addEventListener('DOMContentLoaded', () => {
       // Reset input để cho phép chọn lại cùng file
       e.target.value = '';
    }
-
    // ---------------------------------------------------
    // button ở chân trang footer 
    // ---------------------------------------------------
+
    document.getElementById('btnLuuNhap')?.addEventListener('click', async () => {
       // Kiểm tra dư thừa trước khi lưu tất cả
       let excessive = [];
@@ -607,7 +623,7 @@ document.addEventListener('DOMContentLoaded', () => {
          const textarea = card.querySelector('.serial-textarea');
          const currentSerials = textarea ? parseSerials(textarea.value) : (componentState[id]?.saved || []);
          const type = (card.dataset.type || '').toUpperCase();
-         const isOptional = (type === 'WIN' || type === 'CASE' || type === 'IMEI' || type === 'IMER' || type === 'FAN');
+         const isOptional = card.dataset.noSerial === '1' || (type === 'WIN' || type === 'CASE' || type === 'IMEI' || type === 'IMER' || type === 'FAN');
          const count = currentSerials.length;
          if (count < target) {
             // Đối với linh kiện tùy chọn (WIN, CASE, IMEI, IMER), chỉ lỗi chưa nhập đủ nếu đã bắt đầu nhập (count > 0)
@@ -659,6 +675,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const order_id = typeof currentOrderId !== 'undefined' ? currentOrderId : 1;
 
       document.querySelectorAll('.component-card').forEach(card => {
+         // Bỏ qua linh kiện không cần serial
+         if (card.dataset.noSerial === '1') return;
+
          const textarea = card.querySelector('.serial-textarea');
          if (textarea) {
             const serials = parseSerials(textarea.value);
@@ -802,3 +821,75 @@ document.addEventListener('DOMContentLoaded', () => {
    }
 
 });
+
+// -------------------------------------------------------
+// Inline edit tên linh kiện (ten_linhkien)
+// -------------------------------------------------------
+window.editCompName = function (card) {
+   const nameSpan = card.querySelector('.comp-name-text');
+   if (!nameSpan || card.querySelector('.comp-name-edit-input')) return;
+
+   const oldName = nameSpan.textContent.trim();
+
+   const input = document.createElement('input');
+   input.type = 'text';
+   input.value = oldName;
+   input.className = 'comp-name-edit-input';
+
+   nameSpan.style.display = 'none';
+   nameSpan.after(input);
+   input.focus();
+   input.select();
+
+   let saved = false;
+   const save = async () => {
+      if (saved) return;
+      saved = true;
+      input.removeEventListener('blur', save);
+
+      const newName = input.value.trim();
+      // Di chuyển focus về thẻ card header trước khi remove để tránh Enter kích hoạt nút bên dưới
+      const safeEl = card.querySelector('.component-card-header');
+      if (safeEl) { safeEl.setAttribute('tabindex', '-1'); safeEl.focus(); }
+      input.remove();
+      nameSpan.style.display = '';
+
+      if (!newName || newName === oldName) return;
+
+      try {
+         const res = await fetch('ajax-update-ten-linhkien.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+               order_id: currentOrderId,
+               loai: card.dataset.type,
+               old_name: card.dataset.name,
+               new_name: newName
+            })
+         });
+         const data = await res.json();
+         if (data.success) {
+            nameSpan.textContent = newName;
+            card.dataset.name = newName;
+         } else {
+            alert('Lỗi: ' + data.message);
+         }
+      } catch (e) {
+         alert('Lỗi kết nối: ' + e.message);
+      }
+   };
+
+   const cancel = () => {
+      if (saved) return;
+      saved = true;
+      input.removeEventListener('blur', save);
+      input.remove();
+      nameSpan.style.display = '';
+   };
+
+   input.addEventListener('blur', save);
+   input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); save(); }
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancel(); }
+   });
+};

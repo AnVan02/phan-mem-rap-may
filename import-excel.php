@@ -282,7 +282,6 @@ if ($pdo) {
             tbody += `<tr class="${isSkip ? 'row-error' : 'row-ok'}">`;
             tbody += `<td><strong>Máy ${escHtml(String(row.so_may))}</strong></td>`;
             tbody += `<td>${escHtml(row.cfg_name || '')}</td>`;
-
             const imeiCell = row.cells['imei'];
             if (!imeiCell || imeiCell.status === 'skip') {
                 tbody += `<td class="cell-warn">— (không có)</td>`;
@@ -291,9 +290,8 @@ if ($pdo) {
                     `<td class="cell-ok"><i class="fa-solid fa-check"></i> ${escHtml(imeiCell.value)}</td>`;
             } else {
                 tbody +=
-                    `<td class="cell-error"><i class="fa-solid fa-xmark"></i> ${escHtml(imeiCell.value)}</td>`;
+                    `<td class="cell-error"><i class="fa-solid fa-xmark" ></i> ${escHtml(imeiCell.value)}</td>`;
             }
-
             columns.filter(c => c.key !== 'imei').forEach(col => {
                 const cell = row.cells[col.key];
                 if (!cell || cell.status === 'skip') {
@@ -346,7 +344,7 @@ if ($pdo) {
             loadingOverlay.style.display = 'none';
             btnImport.disabled = false;
             if (!data.success) {
-                alert('Lỗi nhập: ' + data.message);
+                alert('Lỗi hệ thống: ' + data.message);
                 return;
             }
             renderImportResult(data);

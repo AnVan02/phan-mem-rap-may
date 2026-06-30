@@ -208,7 +208,8 @@ if ($pdo && $current_user_id) {
 
         <!-- Import serial từ Excel thẳng vào kho hàng -->
         <input type="file" id="importFileInput" accept=".xlsx,.xls" style="display:none">
-        <button type="button" class="btn-export-premium" id="btnImportExcel" onclick="document.getElementById('importFileInput').click()">
+        <button type="button" class="btn-export-premium-excel" id="btnImportExcel"
+            onclick="document.getElementById('importFileInput').click()">
             <div class="btn-content">
                 <i class="fa-solid fa-file-import"></i>
                 <span id="importBtnLabel">Import Excel</span>
@@ -595,8 +596,10 @@ const myLockedMachine = <?php echo json_encode($my_locked_machine); ?>;
                 const imei = (row.dataset.imei || '');
                 const serials = (row.dataset.serials || '');
                 const config = (row.dataset.config || '');
-                const compText = row.querySelector('.td-linhkien') ? row.querySelector('.td-linhkien').textContent.toLowerCase() : '';
-                const mayText = row.querySelector('.td-may') ? row.querySelector('.td-may').textContent.toLowerCase() : '';
+                const compText = row.querySelector('.td-linhkien') ? row.querySelector('.td-linhkien')
+                    .textContent.toLowerCase() : '';
+                const mayText = row.querySelector('.td-may') ? row.querySelector('.td-may').textContent
+                    .toLowerCase() : '';
 
                 if (machineNum === query) {
                     // Trùng khớp hoàn toàn với số máy
@@ -608,11 +611,11 @@ const myLockedMachine = <?php echo json_encode($my_locked_machine); ?>;
                     if (isNumeric && query.length <= 3) {
                         searchOk = imei.includes(query) || serials.includes(query);
                     } else {
-                        searchOk = imei.includes(query) || 
-                                   serials.includes(query) ||
-                                   config.includes(query) || 
-                                   compText.includes(query) || 
-                                   mayText.includes(query);
+                        searchOk = imei.includes(query) ||
+                            serials.includes(query) ||
+                            config.includes(query) ||
+                            compText.includes(query) ||
+                            mayText.includes(query);
                     }
                 }
             }
@@ -653,8 +656,8 @@ const myLockedMachine = <?php echo json_encode($my_locked_machine); ?>;
 
 // ===== IMPORT EXCEL INLINE =====
 (function() {
-    const input  = document.getElementById('importFileInput');
-    const label  = document.getElementById('importBtnLabel');
+    const input = document.getElementById('importFileInput');
+    const label = document.getElementById('importBtnLabel');
     const orderId = <?php echo json_encode($order_id); ?>;
 
     input.addEventListener('change', async function() {
@@ -663,7 +666,7 @@ const myLockedMachine = <?php echo json_encode($my_locked_machine); ?>;
         this.value = '';
 
         const ext = file.name.split('.').pop().toLowerCase();
-        if (!['xlsx','xls'].includes(ext)) {
+        if (!['xlsx', 'xls'].includes(ext)) {
             Swal.fire('Lỗi', 'Chỉ hỗ trợ file .xlsx hoặc .xls', 'error');
             return;
         }
@@ -676,19 +679,23 @@ const myLockedMachine = <?php echo json_encode($my_locked_machine); ?>;
         fd.append('order_id', orderId);
 
         try {
-            const res  = await fetch('ajax-import-excel.php', { method: 'POST', body: fd });
+            const res = await fetch('ajax-import-excel.php', {
+                method: 'POST',
+                body: fd
+            });
             const data = await res.json();
             label.textContent = 'Import Excel';
             document.getElementById('btnImportExcel').disabled = false;
 
             if (!data.success) {
-                Swal.fire('Lỗi nhập', data.message, 'error');
+                Swal.fire('Lỗi hệ thống', data.message, 'error');
                 return;
             }
 
-            const msg = `Đã nhập <b>${data.total_imported}</b> máy`
-                + (data.total_skipped  ? ` · Bỏ qua <b>${data.total_skipped}</b> (IMEI không khớp)` : '')
-                + (data.total_not_found ? ` · <b>${data.total_not_found}</b> serial không tìm thấy slot` : '');
+            const msg = `Đã nhập <b>${data.total_imported}</b> máy` +
+                (data.total_skipped ? ` · Bỏ qua <b>${data.total_skipped}</b> (IMEI không khớp)` : '') +
+                (data.total_not_found ? ` · <b>${data.total_not_found}</b> serial không tìm thấy slot` :
+                    '');
 
             Swal.fire({
                 icon: 'success',

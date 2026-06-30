@@ -41,6 +41,12 @@ try {
         $pdo->exec("ALTER TABLE donhang ADD COLUMN ghi_chu TEXT NULL AFTER ten_khach_hang");
     }
 
+    // Tự động thêm cột co_serial nếu chưa có
+    $colSerial = $pdo->query("SHOW COLUMNS FROM chitiet_donhang LIKE 'co_serial'")->fetch(PDO::FETCH_ASSOC);
+    if (!$colSerial) {
+        $pdo->exec("ALTER TABLE chitiet_donhang ADD COLUMN co_serial TINYINT(1) NOT NULL DEFAULT 1 AFTER so_may");
+    }
+
     $stmt = $pdo->prepare("INSERT INTO donhang (ma_don_hang, ten_khach_hang, so_luong_may, user_id, ghi_chu) VALUES (?, ?, ?, ?, ?)");
 
     $custom_code = trim($data['customer']['code'] ?? '');
@@ -165,6 +171,7 @@ try {
                     $owner_idx = array_search($ten_nhom_don_hang, $all_cfg_names);
                     $ten_cauhinh = $sorted_list_string . str_repeat(' ', (int) $owner_idx);
 
+                    $co_serial = isset($row['hasSerial']) ? (int)$row['hasSerial'] : 1;
                     for ($m = 1; $m <= $so_luong_may_trong_nhom; $m++) {
                         $so_luong_lk_trong_1_may = $tong_so_luong_lk;
                         for ($q = 1; $q <= $so_luong_lk_trong_1_may; $q++) {
@@ -175,13 +182,11 @@ try {
                                 'seq' => $seq++,
                                 'ten_donhang' => $ten_kh,
                                 'ten_cauhinh' => $ten_cauhinh,
-                                // linhkien_chon = NULL khi tạo đơn
                                 'linhkien_chon' => null,
                                 'ten_linhkien' => mb_strtoupper($clean_lk, 'UTF-8'),
                                 'loai' => $loai,
                                 'so_may' => $m,
-
-
+                                'co_serial' => $co_serial,
                             ];
                         }
                     }
@@ -192,7 +197,7 @@ try {
         // Mỗi máy trong đơn hàng sẽ luôn có 1 slot để nhập IMEI
         for ($m = 1; $m <= $so_luong_may_trong_nhom; $m++) {
             $all_rows[] = [
-                'sort' => $loai_order['IMEI'] ?? 99, // Cho nằm cuối cùng sau WIN
+                'sort' => $loai_order['IMEI'] ?? 99,
                 'machine' => $m,
                 'input_idx' => 999,
                 'seq' => $seq++,
@@ -202,6 +207,7 @@ try {
                 'ten_linhkien' => 'MÃ MÁY (IMEI)',
                 'loai' => 'IMEI',
                 'so_may' => $m,
+                'co_serial' => 1,
             ];
         }
     }
@@ -222,7 +228,7 @@ try {
     });
 
     // Insert tất cả dòng đã sắp xếp
-    $stmt_detail = $pdo->prepare("INSERT INTO chitiet_donhang (id_donhang, ten_donhang, ten_cauhinh, ten_linhkien, loai_linhkien, linhkien_chon, user_id, user_id_save, so_may) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt_detail = $pdo->prepare("INSERT INTO chitiet_donhang (id_donhang, ten_donhang, ten_cauhinh, ten_linhkien, loai_linhkien, linhkien_chon, user_id, user_id_save, so_may, co_serial) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     foreach ($all_rows as $r) {
         $stmt_detail->execute([
             $id_donhang_vua_tao,
@@ -230,10 +236,11 @@ try {
             $r['ten_cauhinh'],
             $r['ten_linhkien'],
             $r['loai'],
-            null, // Đảm bảo linhkien_chon luôn là NULL khi mới tạo đơn
-            null, // Đảm bảo user_id (lock) luôn là NULL khi mới tạo đơn
-            null, // Đảm bảo user_id_save luôn là NULL khi mới tạo đơn
-            $r['so_may'] ?? null
+            null,
+            null,
+            null,
+            $r['so_may'] ?? null,
+            $r['co_serial'] ?? 1,
         ]);
     }
     $pdo->commit();

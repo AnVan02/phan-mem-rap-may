@@ -2,6 +2,48 @@
    NHAP SERIAL - REDESIGNED CSS
    ========================================= */
 
+/* ---- Inline edit tên linh kiện ---- */
+.comp-name {
+   display: flex;
+   align-items: center;
+   gap: 6px;
+   flex-wrap: wrap;
+}
+
+.btn-edit-name {
+   background: none;
+   border: none;
+   color: var(--text-muted);
+   cursor: pointer;
+   padding: 2px 4px;
+   border-radius: 4px;
+   font-size: 12px;
+   opacity: 0;
+   transition: opacity .15s, color .15s;
+   line-height: 1;
+}
+
+.comp-name:hover .btn-edit-name {
+   opacity: 1;
+}
+
+.btn-edit-name:hover {
+   color: var(--primary);
+}
+
+.comp-name-edit-input {
+   font-size: inherit;
+   font-family: inherit;
+   font-weight: 600;
+   color: var(--text-main);
+   border: 1.5px solid var(--primary);
+   border-radius: 6px;
+   padding: 2px 8px;
+   outline: none;
+   min-width: 180px;
+   background: #f0f5ff;
+}
+
 :root {
    --primary: #1152D4;
    --primary-hover: #0F45B2;
@@ -253,7 +295,8 @@ body {
 
 /* Done state: subtle left accent */
 .component-card.done {
-   border-left: 3px solid var(--success);
+   border-left: 5px solid var(--success);
+   width: auto;
 }
 
 /* Open state */
@@ -308,7 +351,7 @@ body {
 
 .comp-name {
    font-size: 18px;
-   font-weight: 700;
+   font-weight: 600;
    color: #0F172A;
    margin-bottom: 0.35rem;
 }
@@ -359,6 +402,7 @@ body {
 .status-done {
    background: #D1FAE5;
    color: #059669;
+   border: 1px solid #A7F3D0
 }
 
 /* Action buttons in header */

@@ -343,45 +343,45 @@ if ($pdo) {
 
 <link rel="stylesheet" href="./css/kho-import-serial.css">
 <main class="main-content-scan">
-   <!-- Breadcrumbs -->
-   <nav class="breadcrumb">
-      <a href="don-hang.php">Đơn hàng</a>
-      <span></span>
-      <span><i class="fa-solid fa-chevron-right"></i></span>
-      <a href="kho-hang.php?id=<?php echo $order_id; ?>">Kho hàng</a>
-      <span><i class="fa-solid fa-chevron-right"></i></span>
-      <span class="active">Quét mã Serial</span>
-   </nav>
-   <div class="page-header">
-      <div class="header-card">
-         <div class="header-machine-block">
-            <span class="machine-label">Máy số</span>
-            <span class="machine-number"><?php echo $m_idx_req; ?></span>
-         </div>
-         <div class="header-v-divider"></div>
-         <div class="header-main-info">
-            <span class="header-action-title">Kiểm Tra Serial Linh Kiện</span>
-            <div class="header-tags">
-               <span class="header-tag">
-                  <i class="fa-regular fa-file-lines"></i>
-                  <?php echo htmlspecialchars($dNameMaster); ?>
-               </span>
-               <span class="header-tag">
-                  <i class="fa-solid fa-barcode"></i>
-                  IMEI: <span id="header-imei-display"><?php echo htmlspecialchars($so_imei ?: '—'); ?></span>
-               </span>
+    <!-- Breadcrumbs -->
+    <nav class="breadcrumb">
+        <a href="don-hang.php">Đơn hàng</a>
+        <span></span>
+        <span><i class="fa-solid fa-chevron-right"></i></span>
+        <a href="kho-hang.php?id=<?php echo $order_id; ?>">Kho hàng</a>
+        <span><i class="fa-solid fa-chevron-right"></i></span>
+        <span class="active">Quét mã Serial</span>
+    </nav>
+    <div class="page-header">
+        <div class="header-card">
+            <div class="header-machine-block">
+                <span class="machine-label">Máy số</span>
+                <span class="machine-number"><?php echo $m_idx_req; ?></span>
             </div>
-         </div>
-      </div>
-   </div>
+            <div class="header-v-divider"></div>
+            <div class="header-main-info">
+                <span class="header-action-title">Kiểm Tra Serial Linh Kiện</span>
+                <div class="header-tags">
+                    <span class="header-tag">
+                        <i class="fa-regular fa-file-lines"></i>
+                        <?php echo htmlspecialchars($dNameMaster); ?>
+                    </span>
+                    <span class="header-tag">
+                        <i class="fa-solid fa-barcode"></i>
+                        IMEI: <span id="header-imei-display"><?php echo htmlspecialchars($so_imei ?: '—'); ?></span>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
 
-   <div class="component-list-card">
-      <div class="list-header">
-         <h2 class="list-title">Danh sách linh kiện cần nhập</h2>
-         <span class="scan-note">* Sử dụng máy quét để nhập nhanh</span>
-      </div>
-      <?php foreach ($comps as $c): ?>
-         <div class="component-item">
+    <div class="component-list-card">
+        <div class="list-header">
+            <h2 class="list-title">Danh sách linh kiện cần nhập</h2>
+            <span class="scan-note">* Sử dụng máy quét để nhập nhanh</span>
+        </div>
+        <?php foreach ($comps as $c): ?>
+        <div class="component-item">
             <?php
             $comp_fullname = $c['label'];
             $icon_html = '<i class="fa-solid fa-microchip"></i>';
@@ -444,59 +444,59 @@ if ($pdo) {
             ?>
 
             <div class="comp-info-side">
-               <div class="comp-icon-box">
-                  <?php echo $icon_html; ?>
-               </div>
-               <div class="comp-text">
-                  <span class="comp-category"><?php echo htmlspecialchars($comp_fullname); ?></span>
-                  <?php
+                <div class="comp-icon-box">
+                    <?php echo $icon_html; ?>
+                </div>
+                <div class="comp-text">
+                    <span class="comp-category"><?php echo htmlspecialchars($comp_fullname); ?></span>
+                    <?php
                   // Chuẩn hóa "siêu sạch" để so sánh: bỏ khoảng trắng, bỏ ngoặc, về chữ thường
                   $clean_name = preg_replace('/[\s\(\)]+/', '', mb_strtolower($c['ten'], 'UTF-8'));
                   $clean_category = preg_replace('/[\s\(\)]+/', '', mb_strtolower($comp_fullname, 'UTF-8'));
 
                   if ($clean_name !== $clean_category):
                   ?>
-                     <span class="comp-name"><?php echo htmlspecialchars($c['ten']); ?></span>
-                  <?php endif; ?>
-               </div>
+                    <span class="comp-name"><?php echo htmlspecialchars($c['ten']); ?></span>
+                    <?php endif; ?>
+                </div>
             </div>
 
             <div class="comp-input-side">
-               <?php
+                <?php
                $l_type = strtolower(trim($c['loai'] ?? ''));
                ?>
-               <div class="input-wrapper">
-                  <input type="text" class="scan-input <?php echo !empty($c['prefilled']) ? 'is-valid' : ''; ?>"
-                     data-id-ct="<?php echo $c['id_ct']; ?>" data-name="<?php echo htmlspecialchars($c['ten']); ?>"
-                     data-loai="<?php echo htmlspecialchars($c['loai']); ?>"
-                     data-choice="<?php echo htmlspecialchars($dNameMaster); ?>"
-                     placeholder="<?php echo ($l_type === 'imei' || $l_type === 'imer' ) ? 'Nhập mã máy...' : 'Quét hoặc nhập serial...'; ?>"
-                     value="<?php echo htmlspecialchars($c['prefilled']); ?>">
-                  <!-- <?php if (strtoupper($c['loai']) === 'IMEI' || strtoupper($c['loai']) === 'IMER'): ?>
+                <div class="input-wrapper">
+                    <input type="text" class="scan-input <?php echo !empty($c['prefilled']) ? 'is-valid' : ''; ?>"
+                        data-id-ct="<?php echo $c['id_ct']; ?>" data-name="<?php echo htmlspecialchars($c['ten']); ?>"
+                        data-loai="<?php echo htmlspecialchars($c['loai']); ?>"
+                        data-choice="<?php echo htmlspecialchars($dNameMaster); ?>"
+                        placeholder="<?php echo ($l_type === 'imei' || $l_type === 'imer' ) ? 'Nhập mã máy...' : 'Quét hoặc nhập serial...'; ?>"
+                        value="<?php echo htmlspecialchars($c['prefilled']); ?>">
+                    <!-- <?php if (strtoupper($c['loai']) === 'IMEI' || strtoupper($c['loai']) === 'IMER'): ?>
                      <div class="input-note">Không kiểm tra</div>
                   <?php endif; ?> -->
-                  <div class="input-actions-group">
-                     <div class="status-indicator <?php echo !empty($c['prefilled']) ? 'success' : ''; ?>">
-                        <?php if (!empty($c['prefilled'])): ?>
-                           <i class="fa-solid fa-circle-check"></i>
-                        <?php endif; ?>
-                     </div>
-                     <div class="barcode-action-btn">
-                        <i class="fa-solid fa-barcode scan-btn-icon" title="Nhấn để quét mã"></i>
-                     </div>
-                  </div>
-               </div>
+                    <div class="input-actions-group">
+                        <div class="status-indicator <?php echo !empty($c['prefilled']) ? 'success' : ''; ?>">
+                            <?php if (!empty($c['prefilled'])): ?>
+                            <i class="fa-solid fa-circle-check"></i>
+                            <?php endif; ?>
+                        </div>
+                        <div class="barcode-action-btn">
+                            <i class="fa-solid fa-barcode scan-btn-icon" title="Nhấn để quét mã"></i>
+                        </div>
+                    </div>
+                </div>
             </div>
-         </div>
-      <?php endforeach; ?>
-   </div>
-   <div class="footer-actions">
-      <button type="button" class="btn-back"
-         onclick="window.location.href='kho-hang.php?id=<?php echo $order_id; ?>'">Quay lại</button>
-      <button type="button" class="btn-confirm" id="btnConfirm" data-next-url="">
-         Xác nhận Lưu
-      </button>
-   </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+    <div class="footer-actions">
+        <button type="button" class="btn-back"
+            onclick="window.location.href='kho-hang.php?id=<?php echo $order_id; ?>'">Quay lại</button>
+        <button type="button" class="btn-confirm" id="btnConfirm" data-next-url="">
+            Xác nhận Lưu
+        </button>
+    </div>
 </main>
 <div id="scan-toast" class="scan-toast"></div>
 
@@ -505,80 +505,80 @@ if ($pdo) {
 
 <!-- Scanner UI Modal (Refined design) -->
 <div id="scanner-ui-modal" class="scanner-modal" style="display:none;">
-   <div class="scanner-ui-container">
-      <div class="scanner-ui-header">
-         <div class="title-wrap">
-            <i class="fa-solid fa-qrcode"></i>
-            <h3>QUÉT MÃ SERIAL</h3>
-         </div>
-         <button type="button" class="btn-close-scanner-icon btn-close-scanner"><i
-               class="fa-solid fa-xmark"></i></button>
-      </div>
-
-      <div class="scanner-ui-body">
-         <div class="scanner-preview-area" id="modalPreviewArea">
-            <div class="scanner-placeholder" id="modalPlaceholder">
-               <div class="icon-circle">
-                  <i class="fa-solid fa-camera"></i>
-               </div>
-               <span>Nhấn để chụp hoặc chọn ảnh</span>
+    <div class="scanner-ui-container">
+        <div class="scanner-ui-header">
+            <div class="title-wrap">
+                <i class="fa-solid fa-qrcode"></i>
+                <h3>QUÉT MÃ SERIAL</h3>
             </div>
-            <img id="modal-preview-img" alt="Preview" style="display:none;">
-            <div class="scanner-corners" id="modalCorners">
-               <div class="scanner-corner tl"></div>
-               <div class="scanner-corner tr"></div>
-               <div class="scanner-corner bl"></div>
-               <div class="scanner-corner br"></div>
+            <button type="button" class="btn-close-scanner-icon btn-close-scanner"><i
+                    class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="scanner-ui-body">
+            <div class="scanner-preview-area" id="modalPreviewArea">
+                <div class="scanner-placeholder" id="modalPlaceholder">
+                    <div class="icon-circle">
+                        <i class="fa-solid fa-camera"></i>
+                    </div>
+                    <span>Nhấn để chụp hoặc chọn ảnh</span>
+                </div>
+                <img id="modal-preview-img" alt="Preview" style="display:none;">
+                <div class="scanner-corners" id="modalCorners">
+                    <div class="scanner-corner tl"></div>
+                    <div class="scanner-corner tr"></div>
+                    <div class="scanner-corner bl"></div>
+                    <div class="scanner-corner br"></div>
+                </div>
+
+                <div class="scanner-loading-overlay" id="modalLoading" style="display:none;">
+                    <div class="spinner"></div>
+                    <span id="loadingTextModal">Đang nạp ảnh...</span>
+                </div>
             </div>
 
-            <div class="scanner-loading-overlay" id="modalLoading" style="display:none;">
-               <div class="spinner"></div>
-               <span id="loadingTextModal">Đang nạp ảnh...</span>
+            <div class="scanner-status-text" id="modalStatus">Chưa chọn ảnh nào</div>
+
+            <div class="modal-btn-grid">
+                <button type="button" class="btn-mod-camera" id="btnModalCapture">
+                    <i class="fa-solid fa-images"></i>Chọn ảnh
+                </button>
+                <button type="button" class="btn-mod-scan" id="btnModalScan" disabled>
+                    <i class="fa-solid fa-microchip"></i>Xử lý
+                </button>
             </div>
-         </div>
-
-         <div class="scanner-status-text" id="modalStatus">Chưa chọn ảnh nào</div>
-
-         <div class="modal-btn-grid">
-            <button type="button" class="btn-mod-camera" id="btnModalCapture">
-               <i class="fa-solid fa-images"></i>Chọn ảnh
+            <button type="button" class="btn-close-scanner"
+                style="width: 100%; margin-top: 5px; padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s">
+                <i class="fa-solid fa-arrow-left"></i>Quay lại
             </button>
-            <button type="button" class="btn-mod-scan" id="btnModalScan" disabled>
-               <i class="fa-solid fa-microchip"></i>Xử lý
-            </button>
-         </div>
-         <button type="button" class="btn-close-scanner"
-            style="width: 100%; margin-top: 5px; padding: 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s">
-            <i class="fa-solid fa-arrow-left"></i>Quay lại
-         </button>
 
-         <div class="scanner-result-container" id="modalResultArea" style="display:none;">
-         </div>
-      </div>
-   </div>
+            <div class="scanner-result-container" id="modalResultArea" style="display:none;">
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
-   const currentOrderId = <?php echo json_encode($order_id); ?>;
-   const currentConfigPure = <?php echo json_encode($l_cfg_req); ?>;
-   const currentMachineIdx = <?php echo (int) $m_idx_req; ?>;
-   const isFreshEntry = <?php echo json_encode($is_fresh); ?>;
-   const isAuthorizedByToken = <?php echo json_encode(isset($_SESSION['ENTRY_TOKEN_VAL_FOUND'])); ?>;
-   (function() {
-      const machineUID = `${currentOrderId}_${currentMachineIdx}_${currentConfigPure}`;
-      const tabKey = "ACTIVE_TAB_FOR_" + machineUID;
+const currentOrderId = <?php echo json_encode($order_id); ?>;
+const currentConfigPure = <?php echo json_encode($l_cfg_req); ?>;
+const currentMachineIdx = <?php echo (int) $m_idx_req; ?>;
+const isFreshEntry = <?php echo json_encode($is_fresh); ?>;
+const isAuthorizedByToken = <?php echo json_encode(isset($_SESSION['ENTRY_TOKEN_VAL_FOUND'])); ?>;
+(function() {
+    const machineUID = `${currentOrderId}_${currentMachineIdx}_${currentConfigPure}`;
+    const tabKey = "ACTIVE_TAB_FOR_" + machineUID;
 
-      if (isAuthorizedByToken) {
-         // Nếu vào bằng token (từ kho-hang.php), đánh dấu tab này là tab "chính chủ"
-         sessionStorage.setItem(tabKey, "true");
-      } else {
-         // Nếu không có token (vào trực tiếp hoặc copy link)
-         if (!sessionStorage.getItem(tabKey)) {
+    if (isAuthorizedByToken) {
+        // Nếu vào bằng token (từ kho-hang.php), đánh dấu tab này là tab "chính chủ"
+        sessionStorage.setItem(tabKey, "true");
+    } else {
+        // Nếu không có token (vào trực tiếp hoặc copy link)
+        if (!sessionStorage.getItem(tabKey)) {
             // Nếu session của riêng tab này cũng không có -> Đẩy về trang chủ
             window.location.href = "kho-hang.php?id=" + currentOrderId;
-         }
-      }
-   })();
+        }
+    }
+})();
 </script>
 
 <script src="./js/quet-ma.js?v=<?php echo time(); ?>"></script>

@@ -198,25 +198,42 @@ body {
    position: relative;
    overflow: hidden;
    border: none;
-   background: linear-gradient(135deg, #1D4ED8 0%, #3B82F6 100%);
-   color: white;
-   padding: 18px 36px;
+   background: #DBEAFE;
+   color: #1D4ED8;
+   padding: 18px 30px;
    border-radius: 24px;
    cursor: pointer;
    font-size: 16px;
-   font-weight: 700;
+   font-weight: 600;
    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
    box-shadow: 0 10px 25px -5px rgba(29, 78, 216, 0.4);
    display: flex;
    align-items: center;
 }
 
-.btn-export-premium:hover {
+.btn-export-premium-excel {
+   position: relative;
+   overflow: hidden;
+   border: none;
+   background: #D1FAE5;
+   color: #047857;
+   padding: 18px 30px;
+   border-radius: 24px;
+   cursor: pointer;
+   font-size: 16px;
+   font-weight: 600;
+   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+   box-shadow: 0 10px 25px -5px rgba(29, 78, 216, 0.4);
+   display: flex;
+   align-items: center;
+}
+
+.btn-export-premium .btn-export-premium-excel:hover {
    transform: translateY(-4px) scale(1.02);
    box-shadow: 0 20px 40px -10px rgba(29, 78, 216, 0.5);
 }
 
-.btn-export-premium:active {
+.btn-export-premium .btn-export-premium-excel:active {
    transform: translateY(0) scale(0.98);
 }
 
@@ -778,6 +795,8 @@ body {
 .btn-nhap-serial-link svg {
    display: none;
 }
+
+
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 1024px) {

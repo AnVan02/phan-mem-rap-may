@@ -72,53 +72,44 @@
         if (!url) return '';
         url = url.trim();
 
-        // 1. Nếu có ?id= hoặc &id=, lấy giá trị của tham số id (chữ, số, gạch ngang, gạch dưới)
+        function stripAfterUnderscore(val) {
+            if (val && val.includes('_')) {
+                return val.split('_')[0].trim();
+            }
+            return val;
+        }
+
+        // 1. ?id=
         const idMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/i);
         if (idMatch) {
-            let val = idMatch[1];
-            // Bóc tách phần trước dấu gạch dưới (_) nếu có
-            if (val.includes('_')) {
-                val = val.split('_')[0];
-            }
-            return val;
+            return stripAfterUnderscore(idMatch[1]);
         }
 
-        // 2. Nếu có ?serial= hoặc &serial= (vd: baohanh.coolerplus.com.vn/tracuu?code=atxp&serial=2026060005283)
+        // 2. ?serial=
         const serialMatch = url.match(/[?&]serial=([a-zA-Z0-9_-]+)/i);
         if (serialMatch) {
-            let val = serialMatch[1];
-            // Bóc tách phần trước dấu gạch dưới (_) nếu có
-            if (val.includes('_')) {
-                val = val.split('_')[0];
-            }
-            return val;
+            return stripAfterUnderscore(serialMatch[1]);
         }
 
-        // 3. Nếu không có id= hay serial=, lấy chuỗi số cuối cùng trong URL (bỏ phần query parameters)
+        // 3. Nếu toàn URL có "_", ưu tiên tách trước khi tìm số cuối
+        if (url.includes('_')) {
+            return stripAfterUnderscore(url.split('?')[0]);
+        }
+
+        // 4. Lấy chuỗi số cuối cùng trong URL (bỏ query string)
         const cleanUrl = url.split('?')[0];
         const matches = cleanUrl.match(/\d+/g);
         if (matches && matches.length > 0) {
             return matches[matches.length - 1];
         }
 
-        // 4. Nếu vẫn không có, kiểm tra toàn bộ URL xem có chứa mã dạng "XXXXX_XXXXX" không
-        // Nếu có, bóc tách phần trước dấu gạch dưới
-        if (url.includes('_')) {
-            const part = url.split('_')[0].trim();
-            if (part && part.length > 0) {
-                return part;
-            }
-        }
-
         return url;
     }
 
-
     const controllers = new Map();
-
     async function validateSerial(input) {
         let val = input.value.trim();
-        if (val.startsWith('http') || val.startsWith('www') || val.includes('/') || val.includes('\\') || val.includes('?')) {
+        if (val.startsWith('http') || val.startsWith('www') || val.includes('/') || val.includes('\\') || val.includes('?') || val.includes('_')) {
             const extracted = extractSerialFromUrl(val);
             if (extracted) {
                 input.value = extracted;
