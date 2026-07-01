@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['ajax'])) {
     $ten_linhkien = isset($input['ten_linhkien']) ? trim($input['ten_linhkien']) : '';
     $loai_linhkien = isset($input['loai_linhkien']) ? trim($input['loai_linhkien']) : '';
     $config_name = isset($input['config_name']) ? trim($input['config_name']) : '';
+    $id_ct_dang_nhap = isset($input['id_ct']) ? (int) $input['id_ct'] : 0;
 
     try {
         // Tinh chỉnh Database: Tự động thêm id_ct nếu thiếu
@@ -28,10 +29,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['ajax'])) {
         } catch (Exception $e) {
         }
 
+        // Nếu không nhập serial thì coi như bỏ qua, không chặn kiểm tra.
+        if ($so_serial === '') {
+            echo json_encode(["status" => "match", "message" => "✓ Bỏ qua (không nhập serial)", "id_ct" => $id_ct_dang_nhap]);
+            exit;
+        }
+
         // ĐẶC BIỆT CHO PHẦN MỀM (WIN) VÀ CASE:
         if (strtoupper($loai_linhkien) === 'WIN' || strtoupper($loai_linhkien) ==='CASE') {
-            $id_ct_dang_nhap = isset($input['id_ct']) ? (int) $input['id_ct'] : 0;
-            $id_ct_dang_nhap = isset($input['id_ct']) ? (int) $input['id_ct'] : 0;
             $ten_loai_display = (strtoupper($loai_linhkien) === 'WIN') ? 'WIN' : 'CASE';
             $ten_tieng_viet = (strtoupper($loai_linhkien) === 'WIN') ? 'Phần mềm' : 'Vỏ máy';
 
@@ -64,7 +69,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['ajax'])) {
             echo json_encode([
                 "status" => "match",
                 "message" => "✓ Hợp lệ (Không kiểm tra)",
-                "id_ct" => isset($input['id_ct']) ? (int) $input['id_ct'] : 0
+                "id_ct" => $id_ct_dang_nhap
+            ]);
+            exit;
+        }
+
+        // Nếu linh kiện này chưa từng lưu serial trước đó, cho phép bỏ qua hoặc nhập sai trong bước kiểm tra.
+        $componentRow = null;
+        if ($id_ct_dang_nhap > 0) {
+            $stmt_component = $pdo->prepare("SELECT co_serial, so_serial FROM chitiet_donhang WHERE id_ct = ? LIMIT 1");
+            $stmt_component->execute([$id_ct_dang_nhap]);
+            $componentRow = $stmt_component->fetch(PDO::FETCH_ASSOC);
+        }
+
+        if ($componentRow && ((int)($componentRow['co_serial'] ?? 1) === 0 || trim((string)($componentRow['so_serial'] ?? '')) === '')) {
+            echo json_encode([
+                "status" => "match",
+                "message" => "✓ Serial hợp lệ cấu hình  ",
+                "id_ct" => $id_ct_dang_nhap
             ]);
             exit;
         }
@@ -103,8 +125,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['ajax'])) {
         }
 
         // Lấy ID của dòng linh kiện hiện tại đang thao tác trên giao diện
-        $id_ct_dang_nhap = isset($input['id_ct']) ? (int) $input['id_ct'] : 0;
-
         $available_rows = [];
         foreach ($all_matches as $m) {
             $assigned_cfg = trim((string) ($m['linhkien_chon'] ?? ''));

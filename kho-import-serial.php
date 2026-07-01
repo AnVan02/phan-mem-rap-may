@@ -389,56 +389,56 @@ if ($pdo) {
                // BỘ XỬ LÝ 
                case 'CPU':
                   $comp_fullname = 'BỘ VI XỬ LÝ (CPU)';
-                  $icon_html = '<i class="fa-solid fa-microchip" style="color:#e74c3c;"></i>';
+                  $icon_html = '<img width="40" height="40" src="https://img.icons8.com/office/40/electronics.png" alt="electronics">';
                   break;
 
                // BO MẠCH CHỦ 
                case 'MAIN':
                   $comp_fullname = 'BO MẠCH CHỦ (MAIN)';
-                  $icon_html = '<i class="fa-solid fa-server" style="color:#8e44ad;"></i>';
+                  $icon_html = '<img width="40" height="40" src="https://img.icons8.com/external-flat-chattapat-/64/external-computer-computer-hardware-flat-chattapat--3.png" alt="external-computer-computer-hardware-flat-chattapat--3"/>';
                   break;
                
                // BỘ NHỚ 
                case 'RAM':
                   $comp_fullname = 'BỘ NHỚ (RAM)';
-                  $icon_html = '<i class="fa-solid fa-memory" style="color:#27ae60;"></i>';
+                  $icon_html = '<img width="40" height="40" src="https://img.icons8.com/plasticine/100/computer-ram.png" alt="computer-ram">';
                   break;
 
                // Ổ CỨNG 
                case 'SSD':
                case 'HDD':
                   $comp_fullname = 'Ổ CỨNG (' . strtoupper($c['loai']) . ')';
-                  $icon_html = '<i class="fa-solid fa-hard-drive" style="color:#2980b9;"></i>';
+                  $icon_html = '<img width="40" height="40" src="https://img.icons8.com/isometric/50/ssd.png" alt="ssd"/>';
                   break;
 
                // CART ĐỒ HOẠ
                case 'VGA':
                   $comp_fullname = 'CARD ĐỒ HỌA (GPU)';
-                  $icon_html = '<i class="fa-solid fa-film" style="color:#f39c12;"></i>';
+                  $icon_html = '<img width="40" height="40" src="https://img.icons8.com/office/40/vga.png" alt="vga"/>';
                   break;
                
                // QUẠT
                case 'FAN':
                   $comp_fullname = 'QUẠT TẢN NHIỆT (FAN)';
-                  $icon_html = '<i class="fa-solid fa-fan" style="color:#7f8c8d;"></i>';
+                  $icon_html = '<img width="40" height="40" src="https://img.icons8.com/plasticine/100/fan.png" alt="fan"/>';
                   break;
 
                // NGUỒN 
                case 'PSU':
                   $comp_fullname = 'NGUỒN (PSU)';
-                  $icon_html = '<i class="fa-solid fa-plug" style="color:#2c3e50;"></i>';
+                  $icon_html = '<img width="40" height="40" src="https://img.icons8.com/external-febrian-hidayat-flat-febrian-hidayat/64/external-Power-Supply-pc-gaming-febrian-hidayat-flat-febrian-hidayat.png" alt="external-Power-Supply-pc-gaming-febrian-hidayat-flat-febrian-hidayat"/>';
                   break;
 
                // THÙNG MÁY 
                case 'CASE':
                   $comp_fullname = 'THÙNG MÀY (CASE)';
-                  $icon_html = '<i class="fa-solid fa-box" style="color:#1152d4;"></i>';
+                  $icon_html = '<img width="40" height="40" src="https://img.icons8.com/external-flat-icons-pack-pongsakorn-tan/64/external-case-computer-flat-icons-pack-pongsakorn-tan.png" alt="external-case-computer-flat-icons-pack-pongsakorn-tan"/>';
                   break;
                   
                // HỆ ĐIỀU HÀNH 
                case 'WIN':
                   $comp_fullname = 'PHẦN MỀM';
-                  $icon_html = '<i class="fa-brands fa-windows" style="color:#00a8ff;"></i>';
+                  $icon_html = '<img width="40" height="40" src="https://img.icons8.com/color/48/windows-11.png" alt="windows-11"/>';
                   break;
             }
             ?>

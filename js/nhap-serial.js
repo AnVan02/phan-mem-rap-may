@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
          }
 
          const type = (card.dataset.type || '').toUpperCase();
-         const isExempt = card.dataset.noSerial === '1' || (type === 'IMEI' || type === 'IMER' || type === 'WIN' || type === 'CASE' || type === 'FAN');
+         const isExempt = card.dataset.noSerial === '1' || (card.dataset.noSerial === '0' && (type === 'WIN' || type === 'CASE' || type === 'FAN'));
 
          if (serials.length > target || (hasDuplicate && !isExempt)) {
             detectedEl.style.color = '#ef4444'; // Màu đỏ cảnh báo
@@ -300,7 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
          });
 
          const type = (card.dataset.type || '').toUpperCase();
-         const isExempt = card.dataset.noSerial === '1' || (type === 'IMEI' || type === 'IMER' || type === 'WIN' || type === 'CASE' || type === 'FAN');
+         const isExempt = card.dataset.noSerial === '1' || (type === 'WIN' || type === 'CASE' || type === 'FAN');
 
          if (localDuplicates.size > 0 && !isExempt) {
             hasWarning = true;
@@ -367,7 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const type = (card.dataset.type || '').toUpperCase();
       const isNoSerial = card.dataset.noSerial === '1';
-      const isOptional = isNoSerial || (type === 'WIN' || type === 'CASE' || type === 'IMEI' || type === 'IMER' || type === 'FAN');
+      const isOptional = isNoSerial || (type === 'WIN' || type === 'CASE' || type === 'FAN');
 
       if (isNoSerial || count >= target || (isOptional && count === 0)) {
          // Hoàn thành
@@ -470,7 +470,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
          const type = (card.dataset.type || '').toUpperCase();
          const isNoSerial = card.dataset.noSerial === '1';
-         const isOptional = isNoSerial || (type === 'WIN' || type === 'CASE' || type === 'IMEI' || type === 'IMER' || type === 'FAN');
+         const isOptional = isNoSerial || (type === 'WIN' || type === 'CASE' || type === 'FAN');
 
          if (!isOptional) {
             totalAll += target;
@@ -478,15 +478,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (currentCount < target) {
                hasIncomplete = true;
             }
+            // Chỉ báo dư serial nếu linh kiện **cần serial**
+            if (currentCount > target) {
+               hasExcessive = true;
+            }
          } else {
             // Đối với linh kiện tùy chọn, nếu đang nhập dở dang (ví dụ 1/2) thì coi là chưa hoàn tất
             if (currentCount > 0 && currentCount < target) {
                hasIncomplete = true;
             }
-         }
-
-         if (currentCount > target) {
-            hasExcessive = true;
+            // Linh kiện không cần serial: bỏ qua kiểm tra dư serial
          }
       });
 
@@ -625,14 +626,16 @@ document.addEventListener('DOMContentLoaded', () => {
          const textarea = card.querySelector('.serial-textarea');
          const currentSerials = textarea ? parseSerials(textarea.value) : (componentState[id]?.saved || []);
          const type = (card.dataset.type || '').toUpperCase();
-         const isOptional = card.dataset.noSerial === '1' || (type === 'WIN' || type === 'CASE' || type === 'IMEI' || type === 'IMER' || type === 'FAN');
+         const isOptional = card.dataset.noSerial === '1' || (type === 'WIN' || type === 'CASE' || type === 'FAN');
          const count = currentSerials.length;
          if (count < target) {
             // Đối với linh kiện tùy chọn (WIN, CASE, IMEI, IMER), chỉ lỗi chưa nhập đủ nếu đã bắt đầu nhập (count > 0)
             if (!isOptional || count > 0) {
                incomplete.push(card.querySelector('.comp-name')?.textContent);
             }
-         } else if (count > target) {
+         } else if (count > target && !isOptional) {
+            // Chỉ báo lỗi dư serial nếu linh kiện **cần serial** (!isOptional)
+            // Linh kiện không cần serial (WIN, CASE, etc) được phép có dư
             excessive.push(card.querySelector('.comp-name')?.textContent);
          }
       });

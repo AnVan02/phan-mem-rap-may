@@ -193,39 +193,39 @@ const currentOrderId = <?php echo $order_id; ?>;
                         <?php
                      switch (strtolower($type)) {
                         case 'cpu':
-                           echo '<i class="fa-solid fa-microchip" style="color:#e74c3c;"></i>';
+                           echo '<img width="50" height="50" src="https://img.icons8.com/office/40/electronics.png" alt="electronics">';
                            break;
                         case 'ram':
-                           echo '<i class="fa-solid fa-memory"style="color:#27ae60;"></i>';
+                           echo '<img width="50" height="50" src="https://img.icons8.com/plasticine/100/computer-ram.png" alt="computer-ram">';
                            break;
                         case 'ssd':
-                           echo '<i class="fa-solid fa-hard-drive" style="color:#2980b9;"></i>';
+                           echo '<img width="50" height="50" src="https://img.icons8.com/isometric/50/ssd.png" alt="ssd"/>';
                            break;
                         case 'vga':
-                           echo '<i class="fa-solid fa-film" style="color:#f39c12;"></i>';
+                           echo '<img width="50" height="50" src="https://img.icons8.com/office/40/vga.png" alt="vga"/>';
                            break;
                         case 'gpu':
-                           echo '<i class="fa-solid fa-display"></i>';
+                           echo '<img width="50" height="50" src="https://img.icons8.com/external-flaticons-flat-flat-icons/64/external-gpu-technology-ecommerce-flaticons-flat-flat-icons.png" alt="external-gpu-technology-ecommerce-flaticons-flat-flat-icons"/>';
                            break;
                         case 'main':
                         case 'mainboard':
-                           echo '<i class="fa-solid fa-server" style="color:#8e44ad;"></i>';
+                           echo '<img width="50" height="50" src="https://img.icons8.com/external-flat-chattapat-/64/external-computer-computer-hardware-flat-chattapat--3.png" alt="external-computer-computer-hardware-flat-chattapat--3"/>';
                            break;
                         case 'psu':
-                           echo '<i class="fa-solid fa-plug" style="color:#2c3e50;"></i>';
+                           echo '<img width="50" height="50" src="https://img.icons8.com/external-febrian-hidayat-flat-febrian-hidayat/64/external-Power-Supply-pc-gaming-febrian-hidayat-flat-febrian-hidayat.png" alt="external-Power-Supply-pc-gaming-febrian-hidayat-flat-febrian-hidayat"/>';
                            break;
                         case 'fan':
-                           echo '<i class="fa-solid fa-fan" style="color:#7f8c8d;"></i>';
+                           echo '<img width="50" height="50" src="https://img.icons8.com/plasticine/100/fan.png" alt="fan"/>';
                            break;
                         case 'case':
-                           echo '<i class="fa-solid fa-box" style="color:#1152d4;"></i>';
+                           echo '<img width="50" height="50" src="https://img.icons8.com/external-flat-icons-pack-pongsakorn-tan/64/external-case-computer-flat-icons-pack-pongsakorn-tan.png" alt="external-case-computer-flat-icons-pack-pongsakorn-tan"/>';
                            break;
                         case 'imei':
                         case 'imer':
                            echo '<i class="fa-solid fa-barcode" style="color:#64748b;"></i>';
                            break;
                         default:
-                           echo '<i class="fa-brands fa-windows" style="color:#00a8ff;"></i>';
+                           echo '<img width="50" height="50" src="https://img.icons8.com/color/48/windows-11.png" alt="windows-11"/>';
                            break;
                      }
                      ?>

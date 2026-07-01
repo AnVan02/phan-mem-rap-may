@@ -82,11 +82,14 @@ require "config.php";
                             <div class="input-wrapper">
                                 <input type="text" list="cpu-list" placeholder="Nhập tên CPU">
                             </div>
-                            <div class="link-group" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <div class="link-group"
+                                style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                                 <button class="btn-link">+ Thêm loại CPU khác</button>
                                 <div class="serial-mode-toggle">
-                                    <button type="button" class="smg-btn smg-active" data-val="1"><i class="fa-solid fa-barcode"></i> Có serial</button>
-                                    <button type="button" class="smg-btn" data-val="0"><i class="fa-solid fa-ban"></i> Không serial</button>
+                                    <button type="button" class="smg-btn smg-active" data-val="1"><i
+                                            class="fa-solid fa-barcode"></i> Có serial</button>
+                                    <button type="button" class="smg-btn" data-val="0"><i class="fa-solid fa-ban"></i>
+                                        Không serial</button>
                                 </div>
                             </div>
                         </div>
@@ -105,11 +108,14 @@ require "config.php";
                             <div class="input-wrapper">
                                 <input type="text" list="mainboard-list" placeholder="Nhập tên MAINBOARD">
                             </div>
-                            <div class="link-group" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <div class="link-group"
+                                style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                                 <button class="btn-link">+ Thêm loại MAINBOARD khác</button>
                                 <div class="serial-mode-toggle">
-                                    <button type="button" class="smg-btn smg-active" data-val="1"><i class="fa-solid fa-barcode"></i> Có serial</button>
-                                    <button type="button" class="smg-btn" data-val="0"><i class="fa-solid fa-ban"></i> Không serial</button>
+                                    <button type="button" class="smg-btn smg-active" data-val="1"><i
+                                            class="fa-solid fa-barcode"></i> Có serial</button>
+                                    <button type="button" class="smg-btn" data-val="0"><i class="fa-solid fa-ban"></i>
+                                        Không serial</button>
                                 </div>
                             </div>
                         </div>
@@ -128,11 +134,14 @@ require "config.php";
                             <div class="input-wrapper">
                                 <input type="text" list="ram-list" placeholder="Nhập tên RAM">
                             </div>
-                            <div class="link-group" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <div class="link-group"
+                                style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                                 <button class="btn-link">+ Thêm loại RAM khác</button>
                                 <div class="serial-mode-toggle">
-                                    <button type="button" class="smg-btn smg-active" data-val="1"><i class="fa-solid fa-barcode"></i> Có serial</button>
-                                    <button type="button" class="smg-btn" data-val="0"><i class="fa-solid fa-ban"></i> Không serial</button>
+                                    <button type="button" class="smg-btn smg-active" data-val="1"><i
+                                            class="fa-solid fa-barcode"></i> Có serial</button>
+                                    <button type="button" class="smg-btn" data-val="0"><i class="fa-solid fa-ban"></i>
+                                        Không serial</button>
                                 </div>
                             </div>
                         </div>
@@ -151,11 +160,14 @@ require "config.php";
                             <div class="input-wrapper">
                                 <input type="text" list="ssd-list" placeholder="Nhập tên SSD">
                             </div>
-                            <div class="link-group" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <div class="link-group"
+                                style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                                 <button class="btn-link">+ Thêm loại SSD khác</button>
                                 <div class="serial-mode-toggle">
-                                    <button type="button" class="smg-btn smg-active" data-val="1"><i class="fa-solid fa-barcode"></i> Có serial</button>
-                                    <button type="button" class="smg-btn" data-val="0"><i class="fa-solid fa-ban"></i> Không serial</button>
+                                    <button type="button" class="smg-btn smg-active" data-val="1"><i
+                                            class="fa-solid fa-barcode"></i> Có serial</button>
+                                    <button type="button" class="smg-btn" data-val="0"><i class="fa-solid fa-ban"></i>
+                                        Không serial</button>
                                 </div>
                             </div>
                         </div>
@@ -174,11 +186,14 @@ require "config.php";
                             <div class="input-wrapper">
                                 <input type="text" list="gpu-list" placeholder="Nhập tên VGA">
                             </div>
-                            <div class="link-group" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <div class="link-group"
+                                style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                                 <button class="btn-link">+ Thêm loại VGA khác</button>
                                 <div class="serial-mode-toggle">
-                                    <button type="button" class="smg-btn smg-active" data-val="1"><i class="fa-solid fa-barcode"></i> Có serial</button>
-                                    <button type="button" class="smg-btn" data-val="0"><i class="fa-solid fa-ban"></i> Không serial</button>
+                                    <button type="button" class="smg-btn smg-active" data-val="1"><i
+                                            class="fa-solid fa-barcode"></i> Có serial</button>
+                                    <button type="button" class="smg-btn" data-val="0"><i class="fa-solid fa-ban"></i>
+                                        Không serial</button>
                                 </div>
                             </div>
                         </div>
@@ -197,11 +212,14 @@ require "config.php";
                             <div class="input-wrapper">
                                 <input type="text" list="fan-list" placeholder="Nhập tên FAN">
                             </div>
-                            <div class="link-group" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <div class="link-group"
+                                style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                                 <button class="btn-link">+ Thêm loại FAN khác</button>
                                 <div class="serial-mode-toggle">
-                                    <button type="button" class="smg-btn smg-active" data-val="1"><i class="fa-solid fa-barcode"></i> Có serial</button>
-                                    <button type="button" class="smg-btn" data-val="0"><i class="fa-solid fa-ban"></i> Không serial</button>
+                                    <button type="button" class="smg-btn smg-active" data-val="1"><i
+                                            class="fa-solid fa-barcode"></i> Có serial</button>
+                                    <button type="button" class="smg-btn" data-val="0"><i class="fa-solid fa-ban"></i>
+                                        Không serial</button>
                                 </div>
                             </div>
                         </div>
@@ -220,11 +238,14 @@ require "config.php";
                             <div class="input-wrapper">
                                 <input type="text" list="pdu-list" placeholder="Nhập tên PSU">
                             </div>
-                            <div class="link-group" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <div class="link-group"
+                                style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                                 <button class="btn-link">+ Thêm loại PSU khác</button>
                                 <div class="serial-mode-toggle">
-                                    <button type="button" class="smg-btn smg-active" data-val="1"><i class="fa-solid fa-barcode"></i> Có serial</button>
-                                    <button type="button" class="smg-btn" data-val="0"><i class="fa-solid fa-ban"></i> Không serial</button>
+                                    <button type="button" class="smg-btn smg-active" data-val="1"><i
+                                            class="fa-solid fa-barcode"></i> Có serial</button>
+                                    <button type="button" class="smg-btn" data-val="0"><i class="fa-solid fa-ban"></i>
+                                        Không serial</button>
                                 </div>
                             </div>
                         </div>
@@ -243,11 +264,14 @@ require "config.php";
                             <div class="input-wrapper">
                                 <input type="text" list="case-list" placeholder="Nhập tên CASE">
                             </div>
-                            <div class="link-group" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <div class="link-group"
+                                style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                                 <button class="btn-link">+ Thêm loại CASE khác</button>
                                 <div class="serial-mode-toggle">
-                                    <button type="button" class="smg-btn smg-active" data-val="1"><i class="fa-solid fa-barcode"></i> Có serial</button>
-                                    <button type="button" class="smg-btn" data-val="0"><i class="fa-solid fa-ban"></i> Không serial</button>
+                                    <button type="button" class="smg-btn smg-active" data-val="1"><i
+                                            class="fa-solid fa-barcode"></i> Có serial</button>
+                                    <button type="button" class="smg-btn" data-val="0"><i class="fa-solid fa-ban"></i>
+                                        Không serial</button>
                                 </div>
                             </div>
                         </div>
@@ -266,11 +290,14 @@ require "config.php";
                             <div class="input-wrapper">
                                 <input type="text" list="win-list" placeholder="Nhập tên WIN">
                             </div>
-                            <div class="link-group" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                            <div class="link-group"
+                                style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
                                 <button class="btn-link">+ Thêm loại WIN khác</button>
                                 <div class="serial-mode-toggle">
-                                    <button type="button" class="smg-btn smg-active" data-val="1"><i class="fa-solid fa-barcode"></i> Có serial</button>
-                                    <button type="button" class="smg-btn" data-val="0"><i class="fa-solid fa-ban"></i> Không serial</button>
+                                    <button type="button" class="smg-btn smg-active" data-val="1"><i
+                                            class="fa-solid fa-barcode"></i> Có serial</button>
+                                    <button type="button" class="smg-btn" data-val="0"><i class="fa-solid fa-ban"></i>
+                                        Không serial</button>
                                 </div>
                             </div>
                         </div>

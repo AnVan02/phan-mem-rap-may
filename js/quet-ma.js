@@ -128,9 +128,12 @@
 
         if (val === '') {
             input.classList.remove('is-valid', 'is-invalid', 'is-loading');
-            if (icon) icon.innerHTML = '';
+            if (icon) {
+                icon.innerHTML = '';
+                icon.className = 'status-indicator';
+            }
             input.dataset.lastChecked = '';
-            return false;
+            return true;
         }
 
         const type = input.getAttribute('data-loai') || '';
@@ -428,7 +431,7 @@
                     const typeUpper = input.getAttribute('data-loai') ? input.getAttribute('data-loai').toUpperCase() : '';
                     let isValid = false;
 
-                    if (val === '' && (typeUpper === 'WIN' || typeUpper === 'IMEI' || typeUpper === 'IMER')) {
+                    if (val === '') {
                         isValid = true;
                     } else {
                         // Gọi kiểm tra ngay lập tức khi nhấn Enter

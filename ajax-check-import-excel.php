@@ -63,6 +63,17 @@ try {
     json_exit(['success' => false, 'message' => 'Không đọc được file: ' . $e->getMessage()]);
 }
 
+// Excel lưu serial/IMEI dạng số (cột không format Text) sẽ bị PHP đọc thành float
+// và ép (string) ra ký hiệu khoa học (VD: 3.59E+14), làm sai lệch so với DB.
+// Chuẩn hóa lại các ô dạng số nguyên về chuỗi số thật trước khi xử lý.
+array_walk_recursive($allRows, function (&$v) {
+    if (is_float($v) && $v == (int)$v && abs($v) < 9.0e15) {
+        $v = (string)(int)$v;
+    } elseif (is_int($v)) {
+        $v = (string)$v;
+    }
+});
+
 if (empty($allRows)) {
     json_exit(['success' => false, 'message' => 'File rỗng']);
 }

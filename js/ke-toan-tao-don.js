@@ -55,11 +55,22 @@ document.addEventListener("DOMContentLoaded", function () {
           const row = lg.closest(".config-row");
           const mainField = row.querySelector(".config-field-main");
           const label = row.querySelector("label").textContent;
+          const toggle = lg.querySelector(".serial-mode-toggle");
           lg.remove();
+
+          const newLinkGroup = document.createElement("div");
+          newLinkGroup.className = "link-group";
+          newLinkGroup.style.cssText = "display: flex; align-items: center; gap: 12px; flex-wrap: wrap;";
+
           const btnLink = document.createElement("button");
+          btnLink.type = "button";
           btnLink.className = "btn-link";
           btnLink.textContent = "+ Thêm loại " + label + " khác";
-          mainField.appendChild(btnLink);
+          newLinkGroup.appendChild(btnLink);
+
+          if (toggle) newLinkGroup.appendChild(toggle);
+
+          mainField.appendChild(newLinkGroup);
         });
 
         // Chèn vào trước nút bấm cuối trang

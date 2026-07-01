@@ -53,6 +53,17 @@ try {
     jimport_exit(['success' => false, 'message' => 'Không đọc được file: ' . $e->getMessage()]);
 }
 
+// Excel lưu serial/IMEI dạng số (cột không format Text) sẽ bị PHP đọc thành float
+// và ép (string) ra ký hiệu khoa học (VD: 3.59E+14), làm sai lệch so với DB.
+// Chuẩn hóa lại các ô dạng số nguyên về chuỗi số thật trước khi xử lý.
+array_walk_recursive($allRows, function (&$v) {
+    if (is_float($v) && $v == (int)$v && abs($v) < 9.0e15) {
+        $v = (string)(int)$v;
+    } elseif (is_int($v)) {
+        $v = (string)$v;
+    }
+});
+
 if (empty($allRows)) jimport_exit(['success' => false, 'message' => 'File rỗng']);
 
 // -------------------------------------------------------
@@ -175,6 +186,10 @@ function isSerialRequired(string $type): bool {
     $noSerialTypes = ['case', 'vỏ case', 'vo case'];
     return !in_array($type, $noSerialTypes, true);
 }
+function isOsType(string $type): bool {
+    $type = mb_strtolower(trim($type), 'UTF-8');
+    return in_array($type, ['hệ điều hành', 'phần mềm', 'win', 'windows'], true);
+}
 
 // Hàm tìm và cập nhật serial cho 1 linh kiện
 function importOneSerial(PDO $pdo, int $order_id, int $so_may, string $cfgNorm,
@@ -186,7 +201,7 @@ function importOneSerial(PDO $pdo, int $order_id, int $so_may, string $cfgNorm,
 
     // Chiến lược 1: khớp so_may + ten_linhkien
     $sql = "SELECT id_ct FROM chitiet_donhang
-            WHERE id_donhang = ? AND so_may = ? AND ($placeholders) AND ten_linhkien = ?
+            WHERE id_donhang = ? AND so_may = ?  AND ($placeholders) AND ten_linhkien = ?
             ORDER BY id_ct ASC LIMIT 1";
     $stmt = $pdo->prepare($sql);
     $stmt->execute(array_merge([$order_id, $so_may], $kw_likes, [$modelName]));
@@ -280,19 +295,50 @@ foreach ($byMachine as $machine) {
 // KIỂM TRA: serial trong file Excel phải khớp với DB
 // -------------------------------------------------------
 
-// Tải toàn bộ serial đã nhập cho đơn hàng này (từ nhap-serial.php)
-$existingSerials = []; // [serial_lower => true]
+// Tải toàn bộ serial đã nhập cho đơn hàng này (từ nhap-serial.php), theo TỪNG máy + TỪNG loại linh kiện
+// (không dùng 1 tập phẳng chung cho cả đơn — nếu không, serial của CPU máy A có thể trùng ngẫu nhiên
+// với serial của RAM máy B và làm "khớp giả" dù thực chất sai linh kiện/sai máy)
+$dbSerialsByMachine = []; // [so_may][loai_linhkien_lower] => [ ['serial'=>.., 'cauhinh'=>..], ... ]  (so_may=0 = chưa gán máy)
 try {
     $stAll = $pdo->prepare(
-        "SELECT LOWER(TRIM(so_serial)) FROM chitiet_donhang
+        "SELECT so_may, LOWER(TRIM(loai_linhkien)) as loai, LOWER(TRIM(so_serial)) as serial,
+                LOWER(TRIM(ten_cauhinh)) as cauhinh
+         FROM chitiet_donhang
          WHERE id_donhang = ? AND so_serial IS NOT NULL AND so_serial <> ''"
     );
     $stAll->execute([$order_id]);
-    foreach ($stAll->fetchAll(PDO::FETCH_COLUMN) as $sn) {
-        $existingSerials[$sn] = true;
+    foreach ($stAll->fetchAll(PDO::FETCH_ASSOC) as $r) {
+        $dbSerialsByMachine[(int)($r['so_may'] ?? 0)][$r['loai']][] = ['serial' => $r['serial'], 'cauhinh' => $r['cauhinh']];
     }
 } catch (PDOException $e) {
     jimport_exit(['success' => false, 'message' => 'Lỗi tải dữ liệu: ' . $e->getMessage()]);
+}
+
+// $cfgName: tên cấu hình (từ Excel) — bắt buộc lọc theo đúng cấu hình, tránh 2 máy khác cấu hình
+// (nên khác linh kiện) nhưng cùng đang ở pool "chưa gán máy" (so_may=0) bị lẫn serial của nhau.
+function getDbSerialsForImport(array $dbSerialsByMachine, int $so_may, string $displayType, string $cfgName): array {
+    $keywords = getTypeKeywordsForImport($displayType);
+    $cfgNorm  = mb_strtolower(trim($cfgName), 'UTF-8');
+    $result   = [];
+    // Ưu tiên serial đã gán đúng máy này
+    foreach ($keywords as $kw) {
+        foreach ($dbSerialsByMachine[$so_may] ?? [] as $dbLoai => $entries) {
+            if (!str_contains($dbLoai, $kw)) continue;
+            foreach ($entries as $e) {
+                if (str_contains($e['cauhinh'], $cfgNorm)) $result[] = $e['serial'];
+            }
+        }
+    }
+    // Fallback: serial cùng loại linh kiện + đúng cấu hình nhưng chưa gán máy (so_may = 0/NULL)
+    foreach ($keywords as $kw) {
+        foreach ($dbSerialsByMachine[0] ?? [] as $dbLoai => $entries) {
+            if (!str_contains($dbLoai, $kw)) continue;
+            foreach ($entries as $e) {
+                if (str_contains($e['cauhinh'], $cfgNorm)) $result[] = $e['serial'];
+            }
+        }
+    }
+    return $result;
 }
 
 // Tải tên linh kiện (model) từ DB để kiểm tra khớp với Excel
@@ -372,13 +418,27 @@ foreach ($byMachine as $mayKey => $machine) {
 
     foreach ($machine['items'] as $it) {
         $sn = trim($it['serial']);
+        $isOs = isOsType($it['type']);
+
         if ($sn === '' || $sn === '-' || $sn === '—') {
             $emptyCount++;
-            continue;
+
+            // ✅ Chỉ bắt buộc nếu ĐÚNG máy này đã có sẵn serial cho loại linh kiện này trong SQL
+            // (riêng Hệ điều hành/Win/Phần mềm không bao giờ bắt buộc serial)
+            $dbSerialsForThisEmpty = getDbSerialsForImport($dbSerialsByMachine, $may, $it['type'], $cfg);
+            if (!$isOs && !empty($dbSerialsForThisEmpty)) {
+                $modelText = $it['model'] !== '' ? " ({$it['model']})" : '';
+                jimport_exit(['success' => false,
+                    'message' => "❌ Thiếu Serial: Linh kiện \"{$it['type']}\"{$modelText} tại Máy {$may} - {$cfg} chưa có số Serial trong file Excel. Vui lòng điền đầy đủ trước khi import."
+                ]);
+            }
+            continue; // máy này chưa có serial cho loại này trong SQL → bỏ qua, không báo lỗi
         }
         $filledCount++;
+        if ($isOs) continue; // Hệ điều hành: không kiểm tra trùng lặp/khớp DB cho serial
+
         $snLower = mb_strtolower($sn, 'UTF-8');
-        
+
         $typeNorm = mb_strtolower($it['type'], 'UTF-8');
         // 1. Kiểm tra trùng lặp trong file Excel (theo từng loại linh kiện)
         if (isset($seenSerialsInExcel[$typeNorm][$snLower])) {
@@ -389,10 +449,15 @@ foreach ($byMachine as $mayKey => $machine) {
         }
         $seenSerialsInExcel[$typeNorm][$snLower] = ['may' => $may, 'cfg' => $cfg, 'type' => $it['type']];
 
-        // 2. Kiểm tra tồn tại trong DB của đơn hàng
-        if (!isset($existingSerials[$snLower])) {
+        // 2. Kiểm tra tồn tại trong DB của đơn hàng — đúng máy này VÀ đúng loại linh kiện này,
+        //    không chỉ khớp ngẫu nhiên với serial của linh kiện khác/máy khác trong cùng đơn hàng.
+        //    Excel phải khớp CHÍNH XÁC serial đã có sẵn trong SQL mới được cập nhật — nếu khác
+        //    (kể cả khi SQL chưa có serial nào) thì không cập nhật, tránh ghi đè nhầm sang máy/
+        //    cấu hình khác khi chỉ khớp lỏng theo loại linh kiện.
+        $dbSerialsForThis = getDbSerialsForImport($dbSerialsByMachine, $may, $it['type'], $cfg);
+        if (!in_array($snLower, $dbSerialsForThis, true)) {
             jimport_exit(['success' => false,
-                'message' => "❌ Lỗi Máy $may - $cfg ({$it['type']}): Serial \"$sn\" không khớp với dữ liệu đã nhập trong đơn hàng #$order_id. Vui lòng kiểm tra lại!"
+                'message' => "❌ Lỗi Máy $may - $cfg ({$it['type']}): Serial \"$sn\" không khớp với dữ liệu đã nhập cho linh kiện này trong đơn hàng #$order_id. Vui lòng kiểm tra lại!"
             ]);
         }
     }
@@ -426,8 +491,13 @@ foreach ($byMachine as $mayKey => $machine) {
     }
     $seenSerialsInExcel['imei'][$imeiLower] = ['may' => $may, 'cfg' => $cfg, 'type' => 'IMEI'];
 
-    // 2. Kiểm tra IMEI tồn tại trong đơn hàng
-    if (!isset($existingSerials[$imeiLower])) {
+    // 2. Kiểm tra IMEI tồn tại trong đơn hàng — ưu tiên đúng máy này, fallback pool chưa gán máy
+    $jsonImei    = $orderImeis[$may - 1] ?? '';
+    $imeiMatched = in_array($imeiLower, $dbImeiRows[$may] ?? [], true)
+        || in_array($imeiLower, $dbImeiRows[0] ?? [], true)
+        || ($jsonImei !== '' && $imeiLower === $jsonImei)
+        || in_array($imeiLower, $allOrderImeiSerials, true);
+    if (!$imeiMatched) {
         jimport_exit(['success' => false,
             'message' =>"❗Số IMEI/IMER \"$imeiExcel\" (Máy $may - $cfg) không trùng khớp với đơn hàng #$order_id. Vui lòng kiểm tra lại file Excel."
         ]);

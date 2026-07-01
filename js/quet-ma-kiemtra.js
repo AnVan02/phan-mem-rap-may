@@ -50,7 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
         errorMsg.textContent = '';
 
         if (!val) {
-            return; // Trống thì không làm gì
+            setInputStatus(input, 'success');
+            return; // Trống thì coi như bỏ qua
         }
 
         // 1. Kiểm tra trùng lặp ngay trên form (Client-side)
@@ -65,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setInputStatus(input, 'error', 'Mã serial này đang bị nhập trùng trong máy này!');
             return;
         }
-        
+
 
         // 2. Kiểm tra database (Server-side)
         try {
@@ -119,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-       confirmBtn?.addEventListener('click', () => {
+    confirmBtn?.addEventListener('click', () => {
         // Kiểm tra lỗi trước khi lưu
         const hasError = document.querySelectorAll('.scan-input.is-invalid').length > 0;
         if (hasError) {
