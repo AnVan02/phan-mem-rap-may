@@ -331,7 +331,8 @@ if ($pdo) {
                'ten' => $mi['ten_linhkien'],
                'label' => $lbl,
                'icon' => $icon,
-               'prefilled' => ($is_m ? $mi['so_serial'] : '')
+               'prefilled' => ($is_m ? $mi['so_serial'] : ''),
+               'co_serial' => (int) ($mi['co_serial'] ?? 1)
             ];
          }
       }
@@ -389,7 +390,7 @@ if ($pdo) {
                // BỘ XỬ LÝ 
                case 'CPU':
                   $comp_fullname = 'BỘ VI XỬ LÝ (CPU)';
-                  $icon_html = '<img width="40" height="40" src="https://img.icons8.com/office/40/electronics.png" alt="electronics">';
+                  $icon_html = '<img width="40" height="40" src="https://img.icons8.com/color/48/smartphone-cpu.png" alt="electronics">';
                   break;
 
                // BO MẠCH CHỦ 
@@ -464,7 +465,22 @@ if ($pdo) {
             <div class="comp-input-side">
                 <?php
                $l_type = strtolower(trim($c['loai'] ?? ''));
+               // CASE/FAN vốn không có serial riêng nên luôn coi là không cần nhập, kể cả khi cờ co_serial chưa được đặt
+               $is_no_serial = ((int) ($c['co_serial'] ?? 1) === 0) || in_array($l_type, ['case', 'fan']);
                ?>
+                <?php if ($is_no_serial): ?>
+                <div class="input-wrapper">
+                    <input type="text" class="scan-input no-serial-input" disabled data-no-serial="1"
+                        data-id-ct="<?php echo $c['id_ct']; ?>" data-name="<?php echo htmlspecialchars($c['ten']); ?>"
+                        data-loai="<?php echo htmlspecialchars($c['loai']); ?>"
+                        data-choice="<?php echo htmlspecialchars($dNameMaster); ?>" placeholder="Mã không hỗ trợ serial"
+                        value="">
+                    <div class="input-actions-group">
+                        <div class="status-indicator"></div>
+                    </div>
+                </div>
+                <div class="input-note no-serial-note">Không cần nhập serial</div>
+                <?php else: ?>
                 <div class="input-wrapper">
                     <input type="text" class="scan-input <?php echo !empty($c['prefilled']) ? 'is-valid' : ''; ?>"
                         data-id-ct="<?php echo $c['id_ct']; ?>" data-name="<?php echo htmlspecialchars($c['ten']); ?>"
@@ -486,6 +502,7 @@ if ($pdo) {
                         </div>
                     </div>
                 </div>
+                <?php endif; ?>
             </div>
         </div>
         <?php endforeach; ?>

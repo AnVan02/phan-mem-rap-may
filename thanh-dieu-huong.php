@@ -90,6 +90,16 @@ function isActive($page, $current_page)
                     </a>
                     <?php endif; ?>
 
+                    <!-- NÚT: danh-sách-don-hang- -->
+                    <?php if (isAuthorized('danh_sach_don_hang.php')): ?>
+                    <a href="danh_sach_don_hang.php"
+                        class="nav-item <?php echo isActive('danh_sach_don_hang.php', $current_page); ?>">
+                        <i class="fa-solid fa-list-check"></i>
+                        <p>Đơn hàng</p>
+                    </a>
+                    <?php endif; ?>
+
+
                     <!-- NÚT: Kế toán tạo đơn -->
                     <!--<?php if (isAuthorized('ke-toan-tao-don.php')): ?>-->
                     <!--   <a href="ke-toan-tao-don.php"-->

@@ -161,6 +161,7 @@ body {
    color: #fff;
 }
 
+
 /* ===== COMPONENT LIST CARD ===== */
 .component-list-card {
    background: var(--card-bg);
@@ -316,6 +317,30 @@ body {
 .input-note::before {
    content: '※ ';
    color: #0f766e;
+}
+
+.scan-input.no-serial-input {
+   background: #F1F5F9;
+   border-color: var(--border);
+   color: #94A3B8;
+   cursor: not-allowed;
+}
+
+.input-note.no-serial-note {
+   font-style: Montserrat;
+   color: #94A3B8;
+   font-weight: 500;
+}
+
+.input-note.no-serial-note::before {
+   content: "";
+   display: inline-block;
+   width: 20px;
+   height: 20px;
+   margin-right: 6px;
+   background: url("https://img.icons8.com/flat-round/64/error--v1.png") no-repeat center;
+   background-size: contain;
+   vertical-align: middle;
 }
 
 /* Actions Group inside Input */

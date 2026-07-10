@@ -12,6 +12,12 @@ if (!$pdo) {
 }
 $pdo->exec("SET NAMES utf8mb4");
 
+// Đảm bảo cột co_serial tồn tại (dùng để đánh dấu linh kiện không cần nhập serial)
+$colSerial = $pdo->query("SHOW COLUMNS FROM chitiet_donhang LIKE 'co_serial'")->fetch(PDO::FETCH_ASSOC);
+if (!$colSerial) {
+    $pdo->exec("ALTER TABLE chitiet_donhang ADD COLUMN co_serial TINYINT(1) NOT NULL DEFAULT 1 AFTER so_may");
+}
+
 function extract_so_may($choice)
 {
     if (preg_match('/M[áàảãạ]y\s*(\d+)/ui', $choice, $matches))
@@ -94,7 +100,7 @@ try {
 
 
     // Lấy thông tin hiện tại để đối chiếu (tránh cập nhật thừa)
-    $stmt_get_current = $pdo->prepare("SELECT id_ct, so_serial, linhkien_chon, so_may, user_id, user_id_save FROM chitiet_donhang WHERE id_ct = ?");
+    $stmt_get_current = $pdo->prepare("SELECT id_ct, so_serial, linhkien_chon, so_may, user_id, user_id_save, co_serial FROM chitiet_donhang WHERE id_ct = ?");
 
     $updated = 0;
     foreach ($serials as $item) {
@@ -102,13 +108,18 @@ try {
         $id_ct = isset($item['id_ct']) ? (int) $item['id_ct'] : 0;
         $type = isset($item['type']) ? strtoupper(trim((string) $item['type'])) : '';
 
-        if (($val === '' && !in_array($type, ['WIN', 'IMEI', 'IMER'])) || $id_ct <= 0)
+        if ($id_ct <= 0)
             continue;
 
         // BƯỚC 1: Kiểm tra xem serial, cấu hình hoặc số máy có thay đổi không
         $stmt_get_current->execute([$id_ct]);
         $row = $stmt_get_current->fetch(PDO::FETCH_ASSOC);
         if ($row) {
+            $co_serial = (int) ($row['co_serial'] ?? 1);
+            // CASE/FAN vốn không có serial riêng nên luôn cho phép lưu rỗng, giống WIN/IMEI/IMER
+            if ($val === '' && !in_array($type, ['WIN', 'IMEI', 'IMER', 'CASE', 'FAN']) && $co_serial !== 0)
+                continue;
+
             $current_sn = (string) ($row['so_serial'] ?? '');
             $current_cfg = (string) ($row['linhkien_chon'] ?? '');
             $current_m = (int) ($row['so_may'] ?? 0);

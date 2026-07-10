@@ -11,7 +11,7 @@
         // Âm thanh đã bị vô hiệu hoá theo yêu cầu
     }
 
-    function showToast(message, type = 'success', duration = 600000) {
+    function showToast(message, type = 'success', duration = 800) {
         const toast = document.getElementById('scan-toast');
         if (!toast) return;
         toast.innerHTML = message.replace(/\n/g, '<br>');
@@ -108,6 +108,7 @@
 
     const controllers = new Map();
     async function validateSerial(input) {
+        if (input.dataset.noSerial === '1') return true;
         let val = input.value.trim();
         if (val.startsWith('http') || val.startsWith('www') || val.includes('/') || val.includes('\\') || val.includes('?') || val.includes('_')) {
             const extracted = extractSerialFromUrl(val);
@@ -148,7 +149,7 @@
                 icon.className = 'status-indicator success anim-pop';
             }
             showFeedback(input, '✓ Hợp lệ (Không kiểm tra)', 'success');
-            showToast(`<i class="fa-solid fa-barcode"></i> IMEI: <b>${val}</b>`, 'success', 3000);
+            showToast(`<i class="fa-solid fa-barcode"></i> IMEI: <b>${val}</b>`, 'success', 800);
             updateConfirmButton();
             return true;
         }
@@ -179,7 +180,7 @@
                 icon.className = 'status-indicator error anim-shake';
             }
             showFeedback(input, 'Lỗi: Mã linh kiện này đã được nhập ở ô khác!', 'error');
-            showToast(`<i class="fa-solid fa-triangle-exclamation"></i> Trùng mã: <b>${val}</b>`, 'error', 3000);
+            showToast(`<i class="fa-solid fa-triangle-exclamation"></i> Trùng mã: <b>${val}</b>`, 'error', 800);
             return false;
         }
 
@@ -224,7 +225,7 @@
                     icon.className = 'status-indicator success anim-pop';
                 }
                 showFeedback(input, res.message, 'success');
-                showToast(`<i class="fa-solid fa-circle-check"></i> <b>${val}</b><br><span style="font-size:12px;opacity:.85">${res.message || ''}</span>`, 'success', 3000);
+                showToast(`<i class="fa-solid fa-circle-check"></i> <b>${val}</b><br><span style="font-size:12px;opacity:.85">${res.message || ''}</span>`, 'success', 800);
                 return true;
             } else {
                 input.classList.remove('is-valid');
@@ -234,7 +235,7 @@
                     icon.className = 'status-indicator error anim-shake';
                 }
                 showFeedback(input, res.message, 'error');
-                showToast(`<i class="fa-solid fa-circle-xmark"></i> <b>${val}</b><br><span style="font-size:12px;opacity:.85">${res.message || ''}</span>`, 'error', 3000);
+                showToast(`<i class="fa-solid fa-circle-xmark"></i> <b>${val}</b><br><span style="font-size:12px;opacity:.85">${res.message || ''}</span>`, 'error', 800);
                 return false;
             }
         } catch (e) {
@@ -389,7 +390,7 @@
             });
         }
 
-        const firstEmpty = Array.from(allIns).find(i => !i.value.trim() || i.classList.contains('is-invalid'));
+        const firstEmpty = Array.from(allIns).find(i => (!i.value.trim() && i.dataset.noSerial !== '1') || i.classList.contains('is-invalid'));
         if (firstEmpty) firstEmpty.focus();
 
         allIns.forEach((input, idx) => {
@@ -440,7 +441,7 @@
 
                     if (isValid) {
                         const nextInputs = Array.from(allIns).slice(idx + 1);
-                        const nextEmpty = nextInputs.find(i => !i.value.trim() || i.classList.contains('is-invalid'));
+                        const nextEmpty = nextInputs.find(i => (!i.value.trim() && i.dataset.noSerial !== '1') || i.classList.contains('is-invalid'));
                         if (nextEmpty) {
                             nextEmpty.focus();
                         } else {
@@ -473,8 +474,9 @@
             allIns.forEach(input => {
                 const val = input.value.trim();
                 const type = input.getAttribute('data-loai') ? input.getAttribute('data-loai').toUpperCase() : '';
+                const noSerial = input.dataset.noSerial === '1';
                 if (val === '') {
-                    if (type === 'WIN' || type === 'IMEI' || type === 'IMER') {
+                    if (type === 'WIN' || type === 'IMEI' || type === 'IMER' || noSerial) {
                         serialsData.push({
                             val: val,
                             name: input.getAttribute('data-name'),

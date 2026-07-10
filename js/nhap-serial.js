@@ -370,16 +370,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const isOptional = isNoSerial || (type === 'WIN' || type === 'CASE' || type === 'FAN');
 
       if (isNoSerial || count >= target || (isOptional && count === 0)) {
-         // Hoàn thành
+         // Hoàn thành     
          card.classList.add('done');
          statusEl.classList.add('status-done');
 
          if (isNoSerial) {
-            // Linh kiện không cần serial: luôn hiện "Không cần serial" màu tím
+            // Linh kiện không cần serial: luôn hiện "Không cần serial" màu đỏ
             statusEl.textContent = 'Không cần nhập serial';
-            statusEl.style.backgroundColor = '#ede9fe';
-            statusEl.style.color = '#1152D4';
-            statusEl.style.borderColor = '#ddd6fe';
+            statusEl.style.backgroundColor = '#FEE2E2';
+            statusEl.style.color = '#DC2626';
+            statusEl.style.borderColor = '#FCA5A5';
          } else if (isOptional && count === 0) {
             statusEl.textContent = `Đầy đủ (${target}/${target})`;
             statusEl.style.backgroundColor = '#D1FAE5';
@@ -425,6 +425,13 @@ document.addEventListener('DOMContentLoaded', () => {
          statusEl.style.backgroundColor = '';
          statusEl.style.color = '';
          statusEl.style.borderColor = '';
+      }
+
+      // Riêng IMEI/IMER: luôn hiện màu vàng nhận diện, bất kể trạng thái nhập
+      if (type === 'IMEI' || type === 'IMER') {
+         statusEl.style.backgroundColor = '#D1FAE5';
+         statusEl.style.color = '#059669';
+         statusEl.style.borderColor = '#A7F3D0';
       }
    }
    function createBtn(className, html, onClick) {

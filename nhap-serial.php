@@ -179,13 +179,16 @@ const currentOrderId = <?php echo $order_id; ?>;
             }
             ?>
             <?php
-            $is_no_serial = ((int)($group_item['co_serial'] ?? 1) === 0);
-            $is_win = (strtoupper($type) === 'WIN' || strtoupper($type) === 'CASE' || strtoupper($type) === 'FAN');
+            // CASE/FAN vốn không có serial riêng nên coi như "Không cần nhập serial", giống co_serial=0
+            $is_no_serial = ((int)($group_item['co_serial'] ?? 1) === 0) || in_array(strtoupper($type), ['CASE', 'FAN']);
+            $is_win = (strtoupper($type) === 'WIN');
+            $is_imei_type = (strtoupper($type) === 'IMEI' || strtoupper($type) === 'IMER');
             $is_done_auto = $is_win || $is_no_serial;
             $card_target = $is_no_serial ? 0 : $target_qty;
             ?>
-            <div class="component-card <?php echo $isOpen; ?>" data-id="<?php echo $global_idx; ?>"
-                data-type="<?php echo strtoupper($type); ?>" data-name="<?php echo htmlspecialchars($name); ?>"
+            <div class="component-card <?php echo $isOpen; ?> <?php echo $is_done_auto ? 'done' : ''; ?>"
+                data-id="<?php echo $global_idx; ?>" data-type="<?php echo strtoupper($type); ?>"
+                data-name="<?php echo htmlspecialchars($name); ?>"
                 data-config="<?php echo htmlspecialchars($configs_str); ?>" data-choice=""
                 data-target="<?php echo $card_target; ?>" data-no-serial="<?php echo $is_no_serial ? '1' : '0'; ?>">
                 <div class="component-card-header" onclick="toggleCard(this)">
@@ -193,7 +196,7 @@ const currentOrderId = <?php echo $order_id; ?>;
                         <?php
                      switch (strtolower($type)) {
                         case 'cpu':
-                           echo '<img width="50" height="50" src="https://img.icons8.com/office/40/electronics.png" alt="electronics">';
+                           echo '<img width="50" height="50" src="https://img.icons8.com/color/48/smartphone-cpu.png" alt="electronics">';
                            break;
                         case 'ram':
                            echo '<img width="50" height="50" src="https://img.icons8.com/plasticine/100/computer-ram.png" alt="computer-ram">';
@@ -235,7 +238,8 @@ const currentOrderId = <?php echo $order_id; ?>;
                             <span class="comp-name-text"><?php echo htmlspecialchars($name); ?></span>
                             <button class="btn-edit-name" title="Chỉnh sửa tên linh kiện"
                                 onclick="editCompName(this.closest('.component-card')); event.stopPropagation()">
-                                <i class="fa-solid fa-pen-to-square"></i>
+                                <img width="30" height="30" src="https://img.icons8.com/arcade/64/edit.png"
+                                    alt="edit--v1" />
                             </button>
                         </div>
                         <div class="comp-meta">
@@ -257,12 +261,16 @@ const currentOrderId = <?php echo $order_id; ?>;
                     <div class="comp-status-area">
                         <?php if ($is_no_serial): ?>
                         <span class="comp-status status-done"
-                            style="color: #1152D4; background: #ede9fe; border: 1px solid #ddd6fe;">Không cần nhập
+                            style="color: #DC2626; background: #FEE2E2; border: 1px solid #FCA5A5;">Không cần nhập
                             serial</span>
                         <?php elseif ($is_win): ?>
                         <span class="comp-status status-done"
                             style="color: #00a957; background: #D1FAE5; border: 1px solid #A7F3D0;">Đầy đủ
                             (<?php echo $target_qty; ?>/<?php echo $target_qty; ?>)</span>
+                        <?php elseif ($is_imei_type): ?>
+                        <span class="comp-status status-pending"
+                            style="color: #92400E; background: #FEF3C7; border: 1px solid #FCD34D;">Chưa nhập
+                            (0/<?php echo $target_qty; ?>)</span>
                         <?php else: ?>
                         <span class="comp-status status-pending">Chưa nhập (0/<?php echo $target_qty; ?>)</span>
                         <?php endif; ?>
@@ -289,8 +297,9 @@ const currentOrderId = <?php echo $order_id; ?>;
                             <div class="textarea-hint">Ví dụ cho
                                 <?php echo strtoupper($type); ?>:<br>SN-<?php echo strtoupper($type); ?>-001<br>SN-<?php echo strtoupper($type); ?>-002
                             </div>
-                            <textarea class="serial-textarea" id="textarea-<?php echo $global_idx; ?>"
-                                placeholder="<?php echo $is_no_serial ? 'Linh kiện này không cần nhập serial' : 'Nhập serial cho ' . htmlspecialchars($type) . '...'; ?>"
+                            <textarea class="serial-textarea <?php echo $is_no_serial ? 'no-serial-textarea' : ''; ?>"
+                                id="textarea-<?php echo $global_idx; ?>"
+                                placeholder="<?php echo $is_no_serial ? 'Không cần nhập serial cho linh kiện này' : 'Nhập serial cho ' . htmlspecialchars($type) . '...'; ?>"
                                 <?php echo $is_done_auto ? 'readonly' : ''; ?>
                                 rows="6"><?php echo isset($group_item['serials']) ? htmlspecialchars(implode("\n", $group_item['serials'])) : ''; ?></textarea>
                             <div class="textarea-footer">

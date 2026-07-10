@@ -35,6 +35,7 @@ $allowed_ketoan = [
     'nhap-serial.php',
     'xuat-file.php',
     'import-excel.php',
+    'danh_sach_don_hang.php',
     'auth-logout.php',
     'dang-nhap.php'
 ];

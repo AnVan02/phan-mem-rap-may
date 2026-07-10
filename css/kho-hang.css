@@ -111,7 +111,7 @@ body {
    align-items: center;
    justify-content: space-between;
    gap: 24px;
-   margin: 40px 0;
+   margin: 30px 0;
    background: rgba(255, 255, 255, 0.4);
    backdrop-filter: blur(15px);
    padding: 24px;
@@ -123,6 +123,12 @@ body {
 .note-input-wrapper {
    flex: 1;
    max-width: 800px;
+}
+
+.export-import-actions {
+   display: flex;
+   align-items: center;
+   gap: 12px;
 }
 
 .input-with-icon {
@@ -197,7 +203,7 @@ body {
 .btn-export-premium {
    position: relative;
    overflow: hidden;
-   border: none;
+   border: 1px solid var(--primary);
    background: #DBEAFE;
    color: #1D4ED8;
    padding: 18px 30px;
@@ -214,9 +220,10 @@ body {
 .btn-export-premium-excel {
    position: relative;
    overflow: hidden;
-   border: none;
    background: #D1FAE5;
    color: #047857;
+   border-color: #047857;
+   border: 1px solid #047857;
    padding: 18px 30px;
    border-radius: 24px;
    cursor: pointer;
@@ -278,7 +285,13 @@ body {
       max-width: 100%;
    }
 
-   .btn-export-premium {
+   .export-import-actions {
+      flex-direction: column;
+      align-items: stretch;
+   }
+
+   .btn-export-premium,
+   .btn-export-premium-excel {
       justify-content: center;
       width: 100%;
    }
@@ -649,6 +662,18 @@ body {
    font-family: Montserrat;
 }
 
+.machine-imei-box.no-imei .imei-value {
+   color: #64748B;
+}
+
+.imei-note {
+   font-size: 11px;
+   font-weight: 500;
+   color: #94A3B8;
+   font-style: italic;
+   margin-top: 2px;
+}
+
 .td-linhkien {
    padding: 12px 32px !important;
    position: relative;
@@ -865,7 +890,13 @@ body {
       padding: 14px 16px 14px 48px;
    }
 
-   .btn-export-premium {
+   .export-import-actions {
+      flex-direction: column;
+      align-items: stretch;
+   }
+
+   .btn-export-premium,
+   .btn-export-premium-excel {
       justify-content: center;
       width: 100%;
       padding: 14px;

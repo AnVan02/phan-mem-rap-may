@@ -193,29 +193,33 @@ if ($pdo && $current_user_id) {
             </div>
         </div>
 
-        <form id="exportFormOrder" method="post" action="xuat-file.php" class="export-form">
-            <input type="hidden" name="id_donhang" value="<?php echo $order_id; ?>">
-            <input type="hidden" name="export_excel" value="1">
-            <button type="button" class="btn-export-premium"
-                onclick="exportWithFilePicker(document.getElementById('exportFormOrder'), this, 'xuat-file.php')">
+        <div class="export-import-actions">
+            <form id="exportFormOrder" method="post" action="xuat-file.php" class="export-form">
+                <input type="hidden" name="id_donhang" value="<?php echo $order_id; ?>">
+                <input type="hidden" name="export_excel" value="1">
+                <button type="button" class="btn-export-premium"
+                    onclick="exportWithFilePicker(document.getElementById('exportFormOrder'), this, 'xuat-file.php')">
+                    <div class="btn-content">
+                        <img width="20" height="20" src="https://img.icons8.com/ultraviolet/40/xls-export.png"
+                            alt="xls-export" />
+                        <span>Xuất Excel</span>
+                    </div>
+                    <div class="btn-shimmer"></div>
+                </button>
+            </form>
+
+            <!-- Import serial từ Excel thẳng vào kho hàng -->
+            <input type="file" id="importFileInput" accept=".xlsx,.xls" style="display:none">
+            <button type="button" class="btn-export-premium-excel" id="btnImportExcel"
+                onclick="document.getElementById('importFileInput').click()">
                 <div class="btn-content">
-                    <i class="fa-solid fa-file-excel"></i>
-                    <span>Xuất Excel</span>
+                    <img width="20" height="20" src="https://img.icons8.com/pulsar-gradient/48/import-csv.png"
+                        alt="import-csv" />
+                    <span id="importBtnLabel">Import Excel</span>
                 </div>
                 <div class="btn-shimmer"></div>
             </button>
-        </form>
-
-        <!-- Import serial từ Excel thẳng vào kho hàng -->
-        <input type="file" id="importFileInput" accept=".xlsx,.xls" style="display:none">
-        <button type="button" class="btn-export-premium-excel" id="btnImportExcel"
-            onclick="document.getElementById('importFileInput').click()">
-            <div class="btn-content">
-                <i class="fa-solid fa-file-import"></i>
-                <span id="importBtnLabel">Import Excel</span>
-            </div>
-            <div class="btn-shimmer"></div>
-        </button>
+        </div>
     </div>
 
     <div class="filter-controls">
@@ -252,7 +256,9 @@ if ($pdo && $current_user_id) {
                         $l_type = strtolower(trim($mi['loai_linhkien'] ?? ''));
                         if ($l_type === 'imei' || $l_type === 'imer') continue; // [MỚI] Bỏ qua IMEI khi xét trạng thái hoàn tất máy
 
-                        $has_s = !empty(trim((string) ($mi['so_serial'] ?? '')));
+                        $mi_co_serial = (int) ($mi['co_serial'] ?? 1);
+                        $mi_no_serial_type = in_array($l_type, ['case', 'fan']); // CASE/FAN vốn không có serial riêng
+                        $has_s = ($mi_co_serial === 0 || $mi_no_serial_type) ? true : !empty(trim((string) ($mi['so_serial'] ?? ''))); // Linh kiện không cần serial luôn coi là đủ
                         $is_v = !empty($mi['user_id_save']); // Kỹ thuật viên đã lưu
                         $assigned_cfg = mb_strtolower(trim($mi['linhkien_chon'] ?? ''), 'UTF-8');
                         if (!$has_s || !$is_v || (string) $assigned_cfg !== (string) $l_key || (int) $mi['so_may'] !== (int) $m_check) {
@@ -313,7 +319,9 @@ if ($pdo && $current_user_id) {
                            if ($l_type === 'imei' || $l_type === 'imer') continue; // [MỚI] Không tính IMEI vào tiến độ vì là mã định danh
 
                            $total++;
-                           $has_s = !empty(trim((string) ($mi['so_serial'] ?? '')));
+                           $mi_co_serial = (int) ($mi['co_serial'] ?? 1);
+                           $mi_no_serial_type = in_array($l_type, ['case', 'fan']); // CASE/FAN vốn không có serial riêng
+                           $has_s = ($mi_co_serial === 0 || $mi_no_serial_type) ? true : !empty(trim((string) ($mi['so_serial'] ?? ''))); // Linh kiện không cần serial luôn coi là đủ
                            $is_v = !empty($mi['user_id_save']);
                            $assigned_cfg = mb_strtolower(trim($mi['linhkien_chon'] ?? ''), 'UTF-8');
                            if ($has_s && $is_v && (string) $assigned_cfg == (string) $l_key && (int) $mi['so_may'] == (int) $i)
@@ -350,7 +358,10 @@ if ($pdo && $current_user_id) {
                                 <div
                                     class="machine-imei-box <?php echo $imei_display !== '' ? 'has-imei' : 'no-imei'; ?>">
                                     <span
-                                        class="imei-value"><?php echo $imei_display !== '' ? htmlspecialchars($imei_display) : '---'; ?></span>
+                                        class="imei-value"><?php echo $imei_display !== '' ? htmlspecialchars($imei_display) : 'Chưa nhập'; ?></span>
+                                    <?php if ($imei_display === ''): ?>
+                                    <span class="imei-note">Không có serial</span>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </td>
@@ -361,7 +372,9 @@ if ($pdo && $current_user_id) {
                                     if ($loai_lower === 'imei' || $loai_lower === 'imer')
                                        continue; // ẨN imei/imer KHỎI DANH SÁCH LINH KIỆN BÊN PHẢI
 
-                                    $has_s = !empty(trim((string) ($mi['so_serial'] ?? '')));
+                                    $mi_co_serial = (int) ($mi['co_serial'] ?? 1);
+                                    $mi_no_serial_type = in_array($loai_lower, ['case', 'fan']); // CASE/FAN vốn không có serial riêng
+                                    $has_s = ($mi_co_serial === 0 || $mi_no_serial_type) ? true : !empty(trim((string) ($mi['so_serial'] ?? ''))); // Linh kiện không cần serial luôn coi là đủ
                                     $is_v = !empty($mi['user_id_save']);
                                     $assigned_cfg = mb_strtolower(trim($mi['linhkien_chon'] ?? ''), 'UTF-8');
                                     $is_assigned = ($has_s && $is_v && (string) $assigned_cfg == (string) $l_key && (int) $mi['so_may'] == (int) $i);

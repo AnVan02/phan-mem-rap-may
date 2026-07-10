@@ -38,13 +38,13 @@ if ($pdo) {
             $stats['pending'] = $stats['processing'];
         }
 
-        // Lấy danh sách đơn hàng - Chỉ lấy đơn khi đã nhập XONG số Serial cho toàn bộ linh kiện
-        $sql_all = "SELECT d.*, 
+        // Lấy danh sách đơn hàng - Hiện ngay khi đã có ít nhất 1 serial được kho nhập (không ẩn cả đơn khi vừa thêm linh kiện mới chưa có serial)
+        $sql_all = "SELECT d.*,
                            (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND {$serial_type_filter}) as total_items,
                            (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND {$serial_done_filter}) as done_items,
                            (SELECT COUNT(*) FROM chitiet_donhang c WHERE c.id_donhang = d.id_donhang AND {$serial_type_filter} AND (IFNULL(c.co_serial, 1) = 0 OR (c.user_id_save IS NOT NULL AND c.user_id_save > 0))) as tech_done_items
                     FROM donhang d
-                    HAVING total_items > 0 AND total_items = done_items
+                    HAVING total_items > 0 AND done_items > 0
                     ORDER BY d.ngay_tao DESC";
         $orders = $pdo->query($sql_all)->fetchAll();
 
@@ -156,14 +156,18 @@ if ($pdo) {
 
         <!-- Thanh lọc -->
         <div class="filter-bar">
-           
+
             <div class="filter-status-tabs">
-                <button class="filter-tab active" data-status="all">Tất cả <span class="filter-tab-count" id="cnt-all"></span></button>
-                <button class="filter-tab" data-status="Chờ kiểm tra">Chờ kiểm tra <span class="filter-tab-count" id="cnt-pending"></span></button>
-                <button class="filter-tab" data-status="Đang kiểm tra">Đang kiểm tra <span class="filter-tab-count" id="cnt-processing"></span></button>
-                <button class="filter-tab" data-status="HOÀN TẤT">Hoàn tất <span class="filter-tab-count" id="cnt-done"></span></button>
+                <button class="filter-tab active" data-status="all">Tất cả <span class="filter-tab-count"
+                        id="cnt-all"></span></button>
+                <button class="filter-tab" data-status="Chờ kiểm tra">Chờ kiểm tra <span class="filter-tab-count"
+                        id="cnt-pending"></span></button>
+                <button class="filter-tab" data-status="Đang kiểm tra">Đang kiểm tra <span class="filter-tab-count"
+                        id="cnt-processing"></span></button>
+                <button class="filter-tab" data-status="HOÀN TẤT">Hoàn tất <span class="filter-tab-count"
+                        id="cnt-done"></span></button>
             </div>
-             <div class="filter-search-wrap">
+            <div class="filter-search-wrap">
                 <i class="fa-solid fa-magnifying-glass filter-search-icon"></i>
                 <input type="text" id="globalSearch" class="filter-search-input" placeholder="Tìm mã lô, khách hàng...">
             </div>
@@ -183,9 +187,10 @@ if ($pdo) {
                 </thead>
                 <tbody>
                     <?php if (empty($orders)): ?>
-                        <tr>
-                            <td colspan="6" style="text-align: center; padding: 4rem;">Chưa có dữ liệu.</td>
-                        </tr>
+                    <tr>
+                        <td colspan="6" style='text-align:center; padding: 2rem; color: #94a3b8;'>Chưa có dữ liệu đơn
+                            hàng.</td>
+                    </tr>
                     <?php else:
                         foreach ($orders as $row):
                             $done = (int) $row['done_items'];
@@ -202,28 +207,28 @@ if ($pdo) {
                                 $cls = 'badge-pending';
                             }
                             ?>
-                            <tr class="order-row">
-                                <td class="col-batch td-batch"><?php
+                    <tr class="order-row">
+                        <td class="col-batch td-batch"><?php
                                     $display_code = (!empty($row['ma_don_hang']) && strpos($row['ma_don_hang'], 'RS-') !== 0)
                                         ? htmlspecialchars($row['ma_don_hang']) 
                                         : '#' . $row['id_donhang'];
                                     echo $display_code;
                                 ?></td>
-                                <td class="col-customer"><?php echo htmlspecialchars($row['ten_khach_hang']); ?></td>
-                                <td class="col-quantity"><strong><?php echo $row['so_luong_may']; ?></strong></td>
-                                <td class="col-date"><?php echo date('d/m/Y', strtotime($row['ngay_tao'])); ?></td>
-                                <td class="col-status"><span class="badge <?php echo $cls; ?>"><?php echo $status; ?></span>
-                                </td>
-                                <td class="col-actions" align="center">
-                                    <?php if ($total > 0 && $done == $total): ?>
-                                        <a href="kho-hang.php?id=<?php echo $row['id_donhang']; ?>" class="btn-row-action"
-                                            style="background: #1152D4;" title="Kiểm tra chất lượng">Kiểm tra</a>
-                                    <?php else: ?>
-                                        <span class="btn-row-action disabled" title="Đang chờ bên Kho nhập Serial">Xử lý</span>
-                                    <?php endif; ?>
-                                </td>
-                            </tr>
-                        <?php endforeach;
+                        <td class="col-customer"><?php echo htmlspecialchars($row['ten_khach_hang']); ?></td>
+                        <td class="col-quantity"><strong><?php echo $row['so_luong_may']; ?></strong></td>
+                        <td class="col-date"><?php echo date('d/m/Y', strtotime($row['ngay_tao'])); ?></td>
+                        <td class="col-status"><span class="badge <?php echo $cls; ?>"><?php echo $status; ?></span>
+                        </td>
+                        <td class="col-actions" align="center">
+                            <?php if ($total > 0 && $done == $total): ?>
+                            <a href="kho-hang.php?id=<?php echo $row['id_donhang']; ?>" class="btn-row-action"
+                                style="background: #1152D4;" title="Kiểm tra chất lượng">Kiểm tra</a>
+                            <?php else: ?>
+                            <span class="btn-row-action disabled" title="Đang chờ bên Kho nhập Serial">Xử lý</span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <?php endforeach;
                     endif; ?>
                 </tbody>
             </table>
@@ -243,88 +248,96 @@ if ($pdo) {
 </main>
 
 <script>
-    const rowsPerPage = 10;
-    let currentPage = 1;
-    let activeStatus = 'all';
+const rowsPerPage = 10;
+let currentPage = 1;
+let activeStatus = 'all';
 
-    const tableBody = document.querySelector('#mainOrdersTable tbody');
-    const allRows = Array.from(tableBody.querySelectorAll('.order-row'));
-    const paginationControls = document.getElementById('paginationControls');
-    const visibleCountText = document.getElementById('visibleCount');
-    const searchInput = document.getElementById('globalSearch');
+const tableBody = document.querySelector('#mainOrdersTable tbody');
+const allRows = Array.from(tableBody.querySelectorAll('.order-row'));
+const paginationControls = document.getElementById('paginationControls');
+const visibleCountText = document.getElementById('visibleCount');
+const searchInput = document.getElementById('globalSearch');
 
-    function getRowStatus(row) {
-        const badge = row.querySelector('.badge');
-        return badge ? badge.textContent.trim() : '';
-    }
+function getRowStatus(row) {
+    const badge = row.querySelector('.badge');
+    return badge ? badge.textContent.trim() : '';
+}
 
-    function updateTabCounts() {
-        const text = searchInput ? searchInput.value.toLowerCase() : '';
-        const textFiltered = allRows.filter(r => !text || r.innerText.toLowerCase().includes(text));
+function updateTabCounts() {
+    const text = searchInput ? searchInput.value.toLowerCase() : '';
+    const textFiltered = allRows.filter(r => !text || r.innerText.toLowerCase().includes(text));
 
-        document.getElementById('cnt-all').textContent = textFiltered.length;
-        document.getElementById('cnt-pending').textContent   = textFiltered.filter(r => getRowStatus(r) === 'Chờ kiểm tra').length;
-        document.getElementById('cnt-processing').textContent = textFiltered.filter(r => getRowStatus(r) === 'Đang kiểm tra').length;
-        document.getElementById('cnt-done').textContent      = textFiltered.filter(r => getRowStatus(r) === 'HOÀN TẤT').length;
-    }
+    document.getElementById('cnt-all').textContent = textFiltered.length;
+    document.getElementById('cnt-pending').textContent = textFiltered.filter(r => getRowStatus(r) === 'Chờ kiểm tra')
+        .length;
+    document.getElementById('cnt-processing').textContent = textFiltered.filter(r => getRowStatus(r) ===
+        'Đang kiểm tra').length;
+    document.getElementById('cnt-done').textContent = textFiltered.filter(r => getRowStatus(r) === 'HOÀN TẤT').length;
+}
 
-    function displayRows() {
-        const text = searchInput ? searchInput.value.toLowerCase() : '';
-        const filteredRows = allRows.filter(row => {
-            const matchText = !text || row.innerText.toLowerCase().includes(text);
-            const matchStatus = activeStatus === 'all' || getRowStatus(row) === activeStatus;
-            return matchText && matchStatus;
-        });
-
-        const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
-        if (currentPage > totalPages && totalPages > 0) currentPage = 1;
-
-        allRows.forEach(row => row.style.display = 'none');
-        const start = (currentPage - 1) * rowsPerPage;
-        filteredRows.slice(start, start + rowsPerPage).forEach(row => row.style.display = '');
-
-        visibleCountText.innerText = filteredRows.length;
-        renderPagination(totalPages);
-        updateTabCounts();
-    }
-
-    function renderPagination(totalPages) {
-        paginationControls.innerHTML = '';
-        if (totalPages <= 1) return;
-
-        const container = document.createElement('div');
-        container.classList.add('pages');
-
-        for (let i = 1; i <= totalPages; i++) {
-            const btn = document.createElement('div');
-            btn.innerText = i;
-            btn.classList.add('page-num');
-            if (i === currentPage) btn.classList.add('active');
-            btn.addEventListener('click', () => {
-                currentPage = i;
-                displayRows();
-                document.getElementById('mainOrdersTable').scrollIntoView({ behavior: 'smooth', block: 'start' });
-            });
-            container.appendChild(btn);
-        }
-        paginationControls.appendChild(container);
-    }
-
-    if (searchInput) {
-        searchInput.addEventListener('input', () => { currentPage = 1; displayRows(); });
-    }
-
-    document.querySelectorAll('.filter-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            activeStatus = tab.dataset.status;
-            currentPage = 1;
-            displayRows();
-        });
+function displayRows() {
+    const text = searchInput ? searchInput.value.toLowerCase() : '';
+    const filteredRows = allRows.filter(row => {
+        const matchText = !text || row.innerText.toLowerCase().includes(text);
+        const matchStatus = activeStatus === 'all' || getRowStatus(row) === activeStatus;
+        return matchText && matchStatus;
     });
 
-    displayRows();
+    const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+    if (currentPage > totalPages && totalPages > 0) currentPage = 1;
+
+    allRows.forEach(row => row.style.display = 'none');
+    const start = (currentPage - 1) * rowsPerPage;
+    filteredRows.slice(start, start + rowsPerPage).forEach(row => row.style.display = '');
+
+    visibleCountText.innerText = filteredRows.length;
+    renderPagination(totalPages);
+    updateTabCounts();
+}
+
+function renderPagination(totalPages) {
+    paginationControls.innerHTML = '';
+    if (totalPages <= 1) return;
+
+    const container = document.createElement('div');
+    container.classList.add('pages');
+
+    for (let i = 1; i <= totalPages; i++) {
+        const btn = document.createElement('div');
+        btn.innerText = i;
+        btn.classList.add('page-num');
+        if (i === currentPage) btn.classList.add('active');
+        btn.addEventListener('click', () => {
+            currentPage = i;
+            displayRows();
+            document.getElementById('mainOrdersTable').scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        });
+        container.appendChild(btn);
+    }
+    paginationControls.appendChild(container);
+}
+
+if (searchInput) {
+    searchInput.addEventListener('input', () => {
+        currentPage = 1;
+        displayRows();
+    });
+}
+
+document.querySelectorAll('.filter-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        activeStatus = tab.dataset.status;
+        currentPage = 1;
+        displayRows();
+    });
+});
+
+displayRows();
 </script>
 
 </div> <!-- .app-body (Mở trong thanh-dieu-huong.php) -->

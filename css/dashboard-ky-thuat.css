@@ -1,6 +1,6 @@
 :root {
     --primary: #FF4D4D;
-    --secondary: #2563EB;
+    --secondary: #1152D4;
     --secondary-soft: #EFF6FF;
     --success: #16A34A;
     --warning: #D97706;
@@ -85,7 +85,7 @@ body {
 
 .stat-icon.blue {
     background: #EFF6FF;
-    color: #2563EB;
+    color: #1152D4;
 }
 
 .stat-icon.orange {
@@ -250,6 +250,7 @@ body {
     background: #e63939;
     transform: scale(1.02);
 }
+
 /* Filter Bar */
 .filter-bar {
     display: flex;
@@ -326,9 +327,9 @@ body {
 
 
 .filter-tab.active {
-    border-color:  #16A34;
-    background: #F0FDF4;
-    color: #16A34A;
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--primary-blue);
+    border-color: rgba(37, 99, 235, 0.2);
 }
 
 .filter-tab-count {

@@ -220,16 +220,13 @@ document.addEventListener("DOMContentLoaded", function () {
           }
 
           if (mainField.querySelectorAll(".multi-field-row").length === 0) {
+            // Chỉ bỏ nút Xoá + dấu "|", GIỮ NGUYÊN link-group (và toggle Có/Không serial bên trong)
+            // để không bị mất khi thêm dòng mới lần sau (trước đây xoá cả link-group nên mất toggle)
             const linkGroup = mainField.querySelector(".link-group");
-            const addText = linkGroup.querySelector(
-              ".btn-link:not(.danger)",
-            ).textContent;
-            linkGroup.remove();
-
-            const newBtn = document.createElement("button");
-            newBtn.className = "btn-link";
-            newBtn.textContent = addText;
-            mainField.appendChild(newBtn);
+            const dangerBtn = linkGroup.querySelector(".btn-link.danger");
+            if (dangerBtn) dangerBtn.remove();
+            const sep = linkGroup.querySelector(".header-sep");
+            if (sep) sep.remove();
           }
         }
       } else {
@@ -255,6 +252,17 @@ document.addEventListener("DOMContentLoaded", function () {
                       `;
           mainField.appendChild(linkGroup);
           btn.remove();
+        } else if (!linkGroup.querySelector(".btn-link.danger")) {
+          // link-group đã có sẵn từ HTML tĩnh (nút Thêm + toggle serial) nhưng chưa có nút Xoá
+          // -> thêm ngay vào đây để hiển thị luôn, không cần F5
+          const sep = document.createElement("span");
+          sep.className = "header-sep";
+          sep.textContent = "|";
+          const dangerBtn = document.createElement("button");
+          dangerBtn.className = "btn-link danger";
+          dangerBtn.textContent = "Xoá";
+          linkGroup.appendChild(sep);
+          linkGroup.appendChild(dangerBtn);
         }
 
         mainField.insertBefore(newMultiRow, linkGroup);
