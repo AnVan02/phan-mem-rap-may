@@ -1,0 +1,365 @@
+:root {
+    --primary-color: #1a56db;
+    --primary-hover: #174bbd;
+    --secondary-color: #e51e2a;
+    --text-dark: #1f2937;
+    --text-soft: #4b5563;
+    --text-muted: #9ca3af;
+    --bg-body: #FFFFFF;
+    --card-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.2);
+    --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Montserrat;
+}
+
+body {
+    background-color: var(--bg-body);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    padding: 2.5rem;
+    align-items: center;
+}
+
+.header-container {
+    width: 100%;
+    max-width: 1200px;
+    margin-bottom: 2.5rem;
+
+}
+
+.sidebar-logo img {
+    max-height: 55px;
+    width: auto;
+    display: block;
+}
+
+.login-card {
+    background: #fff;
+    width: 100%;
+    max-width: 1100px;
+    border-radius: 1.25rem;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    box-shadow: var(--card-shadow);
+    margin: auto;
+}
+
+.left-panel {
+    position: relative;
+    background: url("../image/login_bg_keyboard.png") center/cover no-repeat;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 4rem;
+    color: #fff;
+}
+
+.left-panel::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 50, 100, 0.3) 100%);
+    z-index: 1;
+}
+
+.left-panel-content {
+    position: relative;
+    z-index: 2;
+}
+
+.left-panel-content h1 {
+    font-size: 40px;
+    font-weight: 700;
+    line-height: 1.30;
+    margin-bottom: 1.6rem;
+    text-transform: uppercase;
+    letter-spacing: -0.5px;
+}
+
+.left-panel-content p {
+    font-size: 1.05rem;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.6;
+    margin-bottom: 3rem;
+    max-width: 420px;
+}
+
+.feature-icons {
+    display: flex;
+    gap: 1.25rem;
+}
+
+.icon-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    color: #fff;
+    transition: var(--transition);
+}
+
+.icon-item:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-4px);
+}
+
+.right-panel {
+    padding: 7rem 2.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+}
+
+.right-panel h2 {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.5px;
+}
+
+.right-panel .welcome-text {
+    color: #6b7280;
+    margin-bottom: 3.5rem;
+}
+
+.form-group {
+    margin-bottom: 1.75rem;
+}
+
+.label-wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.6rem;
+}
+
+.label-wrap label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #374151;
+}
+
+.forgot-pass {
+    font-size: 0.875rem;
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.input-relative {
+    position: relative;
+}
+
+.field-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    width: 20px;
+    height: 20px;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9ca3af;
+    cursor: pointer;
+    width: 20px;
+    height: 20px;
+    transition: color 0.2s;
+}
+
+.password-toggle:hover {
+    color: #4b5563;
+}
+
+.input-field {
+    width: 100%;
+    padding: 0.9rem 1rem 0.9rem 3rem;
+    border: 1.5px solid #f3f4f6;
+    background: #f9fafb;
+    border-radius: 10px;
+    font-size: 1rem;
+    outline: none;
+    transition: var(--transition);
+}
+
+.input-field:focus {
+    background: #fff;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(26, 86, 219, 0.1);
+}
+
+.remember-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 2.5rem;
+}
+
+.remember-row input {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+}
+
+.remember-row label {
+    font-size: 0.9rem;
+    color: #6b7280;
+    cursor: pointer;
+}
+
+.btn-submit {
+    width: 100%;
+    padding: 1.1rem;
+    background: var(--primary-color);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    transition: var(--transition);
+    box-shadow: 0 10px 15px -3px rgba(26, 86, 219, 0.2);
+    text-transform: uppercase;
+}
+
+.btn-submit:hover {
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 20px 25px -5px rgba(26, 86, 219, 0.3);
+}
+
+.btn-submit:active {
+    transform: translateY(0);
+}
+
+.copyright-text {
+    text-align: center;
+    margin-top: 4rem;
+    color: #9ca3af;
+    font-size: 0.875rem;
+}
+
+/* ==========================================================================
+   MOBILE RESPONSIVE OPTIMIZATION
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+    .login-card {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        /* Ưu tiên từ trên xuống */
+        min-height: 100vh;
+    }
+
+    .header-container {
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+
+    .sidebar-logo img {
+        margin: 0 auto;
+        max-height: 50px;
+    }
+
+    .login-card {
+        display: block;
+        /* Chuyển về block thay vì grid để dễ kiểm soát width */
+        width: 100%;
+        max-width: 480px;
+        /* Độ rộng lý tưởng cho 1 form mobile */
+        margin: 0 auto;
+        border-radius: 1.25rem;
+    }
+
+    .left-panel {
+        display: none;
+    }
+
+    .right-panel {
+        padding: 3rem 1.75rem;
+        width: 100%;
+    }
+
+    .right-panel h2 {
+        font-size: 1.85rem;
+        text-align: center;
+        margin-bottom: 0.5rem;
+        line-height: 1.2;
+    }
+
+    .right-panel .welcome-text {
+        text-align: center;
+        margin-bottom: 2.5rem;
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .input-field {
+        height: 54px;
+        padding-left: 3.25rem;
+    }
+
+    .field-icon {
+        left: 1.25rem;
+    }
+
+    .btn-submit {
+        height: 58px;
+        margin-top: 1rem;
+    }
+
+    .copyright-text {
+        margin: 2.5rem auto 1rem;
+        width: 100%;
+        text-align: center;
+        color: #9ca3af;
+        background: none;
+    }
+}
+
+/* Tối ưu cho điện thoại cực nhỏ */
+@media (max-width: 380px) {
+    .right-panel h2 {
+        font-size: 1.5rem;
+    }
+
+    .remember-row label {
+        font-size: 0.8rem;
+    }
+}
