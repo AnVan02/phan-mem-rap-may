@@ -1,8 +1,10 @@
 <?php
-// Đổi session save path về thư mục có quyền ghi (tránh lỗi Permission denied trên C:/laragon/tmp)
+// Đổi session save path về thư mục có quyền ghi (chỉ khi session chưa active)
 $_session_path = __DIR__ . '/sessions';
 if (!is_dir($_session_path)) mkdir($_session_path, 0755, true);
-ini_set('session.save_path', $_session_path);
+if (session_status() === PHP_SESSION_NONE && !headers_sent()) {
+    ini_set('session.save_path', $_session_path);
+}
 
 // Fallback mbstring nếu server chưa bật extension
 if (!function_exists('mb_strtolower')) {

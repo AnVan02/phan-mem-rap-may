@@ -1,6 +1,9 @@
 <?php
 require_once 'config.php';
-session_start();
+// config.php đã set session.save_path, giờ mới start session
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 header('Content-Type: application/json');
 

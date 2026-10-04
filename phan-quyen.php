@@ -8,6 +8,12 @@
  */
 
 if (session_status() === PHP_SESSION_NONE) {
+    // Đảm bảo session.save_path luôn trỏ đúng thư mục TRƯỚC khi start session
+    // Tránh lỗi đăng xuất do PHP đọc session ở thư mục mặc định (C:/laragon/tmp)
+    // thay vì thư mục ./sessions/ nơi auth-login.php đã lưu session
+    $_session_path = __DIR__ . '/sessions';
+    if (!is_dir($_session_path)) mkdir($_session_path, 0755, true);
+    ini_set('session.save_path', $_session_path);
     session_start(); // Bật session để nhận diện người dùng đã đăng nhập chưa
 }
 

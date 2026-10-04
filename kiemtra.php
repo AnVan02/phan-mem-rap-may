@@ -169,7 +169,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['ajax'])) {
         }
         $target_id_ct = $available_rows[0]['id_ct'];
         // --- CẬP NHẬT USER_ID NGAY LÚC NHẬP (MỚI) ---
-        session_start();
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
         $session_user_id = (int) ($_SESSION['user_id'] ?? 0);
         if ($session_user_id > 0) {
             $stmt_update_user = $pdo->prepare("UPDATE chitiet_donhang SET user_id = ? WHERE id_ct = ?");

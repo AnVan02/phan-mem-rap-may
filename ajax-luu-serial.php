@@ -1,4 +1,8 @@
 <?php
+// Đảm bảo session.save_path đúng TRƯỚC khi start
+$_session_path = __DIR__ . '/sessions';
+if (!is_dir($_session_path)) mkdir($_session_path, 0755, true);
+ini_set('session.save_path', $_session_path);
 session_start();
 // --- [PHIÊN BẢN MỚI V10 - KIỂM ĐỊNH MỨC THEO CẤU HÌNH ĐÍCH (linhkien_chon), SỬA LỖI TRÙNG SỐ MÁY GIỮA 2 CẤU HÌNH] ---
 $log_entry = date('[Y-m-d H:i:s] ') . "AJAX-LUU-SERIAL V10 CALLED" . PHP_EOL;

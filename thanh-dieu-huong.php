@@ -71,8 +71,8 @@ function isActive($page, $current_page)
 // }
 $so_linh_kien_thieu = 0;
 if (isset($pdo)) {
-    // Cache kết quả đếm trong 30 giây để tránh query nặng chạy mỗi lần tải trang
-    if (!isset($_SESSION['notif_count_time']) || (time() - $_SESSION['notif_count_time']) > 30) {
+    // Cache kết quả đếm trong 5 PHÚT (300s) để tránh query nặng (~400ms) chạy liên tục
+    if (!isset($_SESSION['notif_count_time']) || (time() - $_SESSION['notif_count_time']) > 300) {
         try {
             $stmt_notif = $pdo->query("
                 SELECT COUNT(*) FROM (
@@ -92,6 +92,11 @@ if (isset($pdo)) {
     }
     $so_linh_kien_thieu = $_SESSION['notif_count'] ?? 0;
 }
+
+// Đóng session sớm để GIẢI PHÓNG session lock — cho phép các request khác
+// chạy song song thay vì bị chặn chờ session file. Đây là nguyên nhân chính
+// gây cảm giác "chậm" khi click liên tục giữa các trang.
+session_write_close();
 ?>
 
 

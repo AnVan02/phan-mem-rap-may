@@ -12,10 +12,10 @@ if ($search_query !== '') {
                d.ma_don_hang, d.ngay_tao, d.ten_khach_hang, c.ten_linhkien, c.loai_linhkien, c.so_serial
         FROM chitiet_donhang c
         JOIN donhang d ON c.id_donhang = d.id_donhang
-        WHERE c.so_serial = :search OR d.ma_don_hang = :search
+        WHERE c.so_serial = :search1 OR d.ma_don_hang = :search2
         ORDER BY c.id_ct ASC
     ");
-    $stmt->execute(['search' => $search_query]);
+    $stmt->execute(['search1' => $search_query, 'search2' => $search_query]);
     $matches = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     function get_owner_config_name($ten_cauhinh) {

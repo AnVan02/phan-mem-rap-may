@@ -1,4 +1,8 @@
 <?php
+// Đảm bảo session.save_path đúng TRƯỚC khi start
+$_session_path = __DIR__ . '/sessions';
+if (!is_dir($_session_path)) mkdir($_session_path, 0755, true);
+ini_set('session.save_path', $_session_path);
 session_start();
 require "config.php";
 header('Content-Type: application/json');
@@ -15,6 +19,11 @@ if (!$user_id) {
     echo json_encode(['success' => false, 'message' => 'Chưa đăng nhập']);
     exit;
 }
+
+// Tự động dọn lock cũ hơn 2 tiếng (stale lock) để tránh bị block vô thời hạn
+try {
+    $pdo->exec("DELETE FROM trang_thai_lap_may WHERE last_active < NOW() - INTERVAL 2 HOUR");
+} catch (Exception $e) { /* bỏ qua nếu cột last_active không có */ }
 
 $action = $_POST['action'] ?? '';
 $order_id = isset($_POST['order_id']) ? (int) $_POST['order_id'] : 0;
