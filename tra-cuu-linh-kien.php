@@ -838,7 +838,7 @@ animation: fadeIn 0.4s ease-out;
                     <?php foreach ($paginated_results as $row): ?>
                         <?php
                             $r_id = $row['id_donhang'];
-                            $r_cfg = json_encode($row['owner_config'] ?? '');
+                            $r_cfg = htmlspecialchars(json_encode($row['owner_config'] ?? ''), ENT_QUOTES, 'UTF-8');
                             $r_may = (int)($row['so_may'] ?? 0);
                             $imei_display = ($row['imei_may'] !== 'Chưa có') ? $row['imei_may'] : '';
                         ?>

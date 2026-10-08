@@ -1,4 +1,15 @@
 <?php
+// Hàm hỗ trợ loại bỏ space hack để hiển thị tên cấu hình sạch
+function cleanConfigName($ten_cauhinh) {
+    $tc = (string)($ten_cauhinh ?? '');
+    if (strpos($tc, ',') === false) {
+        return trim($tc);
+    }
+    $trailing = strlen($tc) - strlen(rtrim($tc, ' '));
+    $cfgs = array_map('trim', explode(',', $tc));
+    return $cfgs[$trailing] ?? trim($cfgs[0] ?? '');
+}
+
 // Xử lý AJAX POST trước khi in bất kỳ HTML nào
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && $_GET['action'] === 'add_component') {
     // Đảm bảo session.save_path đúng TRƯỚC khi start
@@ -48,32 +59,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['action']) && $_GET['ac
         $inserted_count = 0;
         foreach ($machines as $m) {
             $so_may = (int)($m['so_may'] ?? 0);
-            $ten_cauhinh = (string)($m['ten_cauhinh'] ?? '');
+            $target_cauhinh = (string)($m['ten_cauhinh'] ?? '');
+            $clean_target = cleanConfigName($target_cauhinh);
             
             if ($so_may <= 0) continue;
             
-            // Cho phép thêm nhiều RAM/SSD trên cùng máy; các loại khác vẫn giữ 1 bản ghi mỗi máy
+            // Lấy tất cả linh kiện hiện tại của máy này để tìm đúng template của cấu hình đó
+            $stmt_m_rows = $pdo->prepare("SELECT id_ct, ten_donhang, ten_cauhinh, loai_linhkien FROM chitiet_donhang WHERE id_donhang = ? AND so_may = ?");
+            $stmt_m_rows->execute([$id_donhang, $so_may]);
+            $current_rows = $stmt_m_rows->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Kiểm tra xem cấu hình này trên máy đã có linh kiện $type chưa (ngoại trừ RAM/SSD/HDD cho phép nhiều)
             if (!in_array($type, $allow_multiple_types)) {
-                $stmt = $pdo->prepare("SELECT COUNT(*) FROM chitiet_donhang WHERE id_donhang = ? AND so_may = ? AND ten_cauhinh = ? AND loai_linhkien = ?");
-                $stmt->execute([$id_donhang, $so_may, $ten_cauhinh, $type]);
-                if ($stmt->fetchColumn() > 0) {
+                $already_has = false;
+                foreach ($current_rows as $cr) {
+                    if (cleanConfigName($cr['ten_cauhinh']) === $clean_target && strtoupper($cr['loai_linhkien'] ?? '') === $type) {
+                        $already_has = true;
+                        break;
+                    }
+                }
+                if ($already_has) {
                     continue;
                 }
             }
             
-            // Tìm dòng mẫu để sao chép nguyên văn ten_donhang và ten_cauhinh (nhằm bảo toàn cơ chế space hack)
-            $stmt_template = $pdo->prepare("SELECT ten_donhang, ten_cauhinh FROM chitiet_donhang WHERE id_donhang = ? AND so_may = ? AND ten_cauhinh = ? LIMIT 1");
-            $stmt_template->execute([$id_donhang, $so_may, $ten_cauhinh]);
-            $template = $stmt_template->fetch(PDO::FETCH_ASSOC);
-            
-            if (!$template) {
-                $stmt_template2 = $pdo->prepare("SELECT ten_donhang, ten_cauhinh FROM chitiet_donhang WHERE id_donhang = ? AND so_may = ? LIMIT 1");
-                $stmt_template2->execute([$id_donhang, $so_may]);
-                $template = $stmt_template2->fetch(PDO::FETCH_ASSOC);
+            // Tìm dòng mẫu chính xác của cấu hình này
+            $template_row = null;
+            foreach ($current_rows as $cr) {
+                if (cleanConfigName($cr['ten_cauhinh']) === $clean_target) {
+                    $template_row = $cr;
+                    break;
+                }
             }
             
-            $db_ten_donhang = $template ? $template['ten_donhang'] : null;
-            $db_ten_cauhinh = $template ? $template['ten_cauhinh'] : $ten_cauhinh;
+            $db_ten_donhang = $template_row ? $template_row['ten_donhang'] : null;
+            $db_ten_cauhinh = $clean_target ?: ($template_row ? cleanConfigName($template_row['ten_cauhinh']) : $target_cauhinh);
             
             if (empty($db_ten_donhang)) {
                 $stmt_order = $pdo->prepare("SELECT ten_khach_hang FROM donhang WHERE id_donhang = ?");
@@ -113,17 +133,6 @@ $type = isset($_GET['type']) ? strtoupper(trim($_GET['type'])) : 'CPU';
 $allowed_types = ['CPU', 'MAIN', 'RAM', 'SSD', 'HDD', 'VGA', 'PSU', 'FAN', 'CASE', 'WIN'];
 if (!in_array($type, $allowed_types)) {
     $type = 'CPU';
-}
-
-// Hàm hỗ trợ loại bỏ space hack để hiển thị tên cấu hình sạch
-function cleanConfigName($ten_cauhinh) {
-    $tc = (string)($ten_cauhinh ?? '');
-    if (strpos($tc, ',') === false) {
-        return trim($tc);
-    }
-    $trailing = strlen($tc) - strlen(rtrim($tc));
-    $cfgs = array_map('trim', explode(',', $tc));
-    return $cfgs[$trailing] ?? trim($cfgs[0] ?? '');
 }
 
 // Hàm hỗ trợ lấy icon động dựa trên loại linh kiện
@@ -166,21 +175,23 @@ try {
     // Tổng số đơn hàng
     $stats['total_orders'] = (int)$pdo->query("SELECT COUNT(*) FROM donhang")->fetchColumn();
     
-    // Thống kê số lượng máy theo trạng thái linh kiện $type
+    // Thống kê số lượng máy theo trạng thái linh kiện $type (nhóm theo id_donhang, ten_cauhinh, so_may để phân biệt các cấu hình khác nhau)
     $sql_stat = "
         SELECT 
-            SUM(CASE WHEN comp.id_ct IS NULL OR comp.ten_linhkien IS NULL OR comp.ten_linhkien = '' THEN 1 ELSE 0 END) AS count_missing,
-            SUM(CASE WHEN comp.id_ct IS NOT NULL AND comp.ten_linhkien != '' AND IFNULL(comp.co_serial, 1) = 1 AND (comp.so_serial IS NULL OR comp.so_serial = '') THEN 1 ELSE 0 END) AS count_processing,
-            SUM(CASE WHEN comp.id_ct IS NOT NULL AND comp.ten_linhkien != '' AND (IFNULL(comp.co_serial, 1) = 0 OR (comp.so_serial IS NOT NULL AND comp.so_serial != '')) THEN 1 ELSE 0 END) AS count_completed
+            SUM(CASE WHEN has_type = 0 THEN 1 ELSE 0 END) AS count_missing,
+            SUM(CASE WHEN has_type = 1 AND is_processing = 1 THEN 1 ELSE 0 END) AS count_processing,
+            SUM(CASE WHEN has_type = 1 AND is_processing = 0 THEN 1 ELSE 0 END) AS count_completed
         FROM (
-            SELECT DISTINCT id_donhang, so_may
+            SELECT 
+                id_donhang,
+                ten_cauhinh,
+                so_may,
+                MAX(CASE WHEN loai_linhkien = :type AND ten_linhkien IS NOT NULL AND TRIM(ten_linhkien) != '' THEN 1 ELSE 0 END) AS has_type,
+                MAX(CASE WHEN loai_linhkien = :type AND ten_linhkien IS NOT NULL AND TRIM(ten_linhkien) != '' AND IFNULL(co_serial, 1) = 1 AND (so_serial IS NULL OR TRIM(so_serial) = '') THEN 1 ELSE 0 END) AS is_processing
             FROM chitiet_donhang
             WHERE so_may IS NOT NULL AND so_may > 0
-        ) m
-        LEFT JOIN chitiet_donhang comp 
-            ON comp.id_donhang = m.id_donhang 
-           AND comp.so_may = m.so_may 
-           AND comp.loai_linhkien = :type
+            GROUP BY id_donhang, BINARY ten_cauhinh, so_may
+        ) t
     ";
     $stmt_stat = $pdo->prepare($sql_stat);
     $stmt_stat->execute(['type' => $type]);
@@ -194,28 +205,34 @@ try {
     // Bỏ qua lỗi fallback
 }
 
-// 2. Truy vấn danh sách đơn hàng
+// 2. Truy vấn danh sách đơn hàng (Tối ưu bằng LEFT JOIN với subquery gom nhóm máy thiếu theo từng cấu hình)
 $donhangs = [];
 try {
     $q_dh = "
-        SELECT d.id_donhang, d.ma_don_hang, d.ten_khach_hang, d.ngay_tao, d.so_luong_may,
-            (
-                SELECT COUNT(DISTINCT CONCAT(c.so_may, '-', c.ten_cauhinh))
-                FROM chitiet_donhang c
-                WHERE c.id_donhang = d.id_donhang 
-                  AND c.so_may IS NOT NULL 
-                  AND c.so_may > 0
-                  AND c.loai_linhkien != 'IMEI'
-                  AND NOT EXISTS (
-                      SELECT 1 FROM chitiet_donhang comp
-                      WHERE comp.id_donhang = d.id_donhang
-                        AND comp.so_may = c.so_may
-                        AND comp.ten_cauhinh = c.ten_cauhinh
-                        AND comp.loai_linhkien = :type
-                        AND comp.ten_linhkien != ''
-                  )
-            ) AS so_may_thieu_lk
+        SELECT 
+            d.id_donhang, 
+            d.ma_don_hang, 
+            d.ten_khach_hang, 
+            d.ngay_tao, 
+            d.so_luong_may,
+            IFNULL(m_thieu.so_may_thieu_lk, 0) AS so_may_thieu_lk
         FROM donhang d
+        LEFT JOIN (
+            SELECT 
+                id_donhang,
+                SUM(CASE WHEN has_lk = 0 THEN 1 ELSE 0 END) AS so_may_thieu_lk
+            FROM (
+                SELECT 
+                    id_donhang,
+                    ten_cauhinh,
+                    so_may,
+                    MAX(CASE WHEN loai_linhkien = :type AND ten_linhkien IS NOT NULL AND TRIM(ten_linhkien) != '' THEN 1 ELSE 0 END) AS has_lk
+                FROM chitiet_donhang
+                WHERE so_may IS NOT NULL AND so_may > 0 AND loai_linhkien != 'IMEI'
+                GROUP BY id_donhang, BINARY ten_cauhinh, so_may
+            ) m
+            GROUP BY id_donhang
+        ) m_thieu ON m_thieu.id_donhang = d.id_donhang
         ORDER BY d.ngay_tao DESC
     ";
     $stmt_dh = $pdo->prepare($q_dh);
@@ -228,7 +245,7 @@ try {
 // Gợi ý linh kiện
 $suggested_comps = [];
 try {
-    $q_comp = "SELECT DISTINCT ten_linhkien FROM chitiet_donhang WHERE loai_linhkien = :type AND ten_linhkien != '' ORDER BY ten_linhkien ASC";
+    $q_comp = "SELECT DISTINCT ten_linhkien FROM chitiet_donhang WHERE loai_linhkien = :type AND ten_linhkien != '' ORDER BY ten_linhkien ASC LIMIT 100";
     $stmt_comp = $pdo->prepare($q_comp);
     $stmt_comp->execute(['type' => $type]);
     $suggested_comps = $stmt_comp->fetchAll(PDO::FETCH_COLUMN);
@@ -255,22 +272,43 @@ if ($selected_id > 0) {
     
     if ($selected_order) {
         try {
-            $stmt = $pdo->prepare("SELECT DISTINCT so_may, ten_cauhinh FROM chitiet_donhang WHERE id_donhang = ? AND so_may IS NOT NULL AND so_may > 0 ORDER BY so_may ASC");
-            $stmt->execute([$selected_id]);
-            $raw_machines = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            // Lấy toàn bộ linh kiện của đơn hàng này trong 1 query duy nhất
+            $stmt_all_comps = $pdo->prepare("
+                SELECT so_may, ten_cauhinh, loai_linhkien, ten_linhkien, so_serial, IFNULL(co_serial, 1) as co_serial 
+                FROM chitiet_donhang 
+                WHERE id_donhang = ? AND so_may IS NOT NULL AND so_may > 0 
+                ORDER BY so_may ASC, id_ct ASC
+            ");
+            $stmt_all_comps->execute([$selected_id]);
+            $all_comp_rows = $stmt_all_comps->fetchAll(PDO::FETCH_ASSOC);
             
-            foreach ($raw_machines as $rm) {
-                $so_may = (int)$rm['so_may'];
-                $ten_cauhinh = $rm['ten_cauhinh'];
+            // Nhóm theo từng máy (kết hợp Tên Cấu Hình + Số Máy để hỗ trợ đơn có nhiều cấu hình)
+            $machines_grouped = [];
+            foreach ($all_comp_rows as $row) {
+                $sm = (int)$row['so_may'];
+                $cfg_clean = cleanConfigName($row['ten_cauhinh']);
+                $m_key = ($cfg_clean ?: 'default') . '__' . $sm;
                 
-                // Lấy tất cả linh kiện của máy này để xác định trạng thái các loại CPU, RAM, MAIN
-                $stmt_m_comps = $pdo->prepare("SELECT loai_linhkien, ten_linhkien, so_serial, IFNULL(co_serial, 1) as co_serial FROM chitiet_donhang WHERE id_donhang = ? AND so_may = ?");
-                $stmt_m_comps->execute([$selected_id, $so_may]);
-                $m_comps = $stmt_m_comps->fetchAll(PDO::FETCH_ASSOC);
+                if (!isset($machines_grouped[$m_key])) {
+                    $machines_grouped[$m_key] = [
+                        'so_may' => $sm,
+                        'ten_cauhinh' => $row['ten_cauhinh'],
+                        'clean_cauhinh' => $cfg_clean,
+                        'comps' => []
+                    ];
+                }
+                $machines_grouped[$m_key]['comps'][] = $row;
+            }
+            
+            foreach ($machines_grouped as $mKey => $mData) {
+                $so_may = $mData['so_may'];
+                $ten_cauhinh = $mData['ten_cauhinh'];
+                $clean_cauhinh = $mData['clean_cauhinh'];
+                $m_comps = $mData['comps'];
                 
                 $getCompStatus = function($compType) use ($m_comps) {
                     $found = array_filter($m_comps, function($c) use ($compType) {
-                        return strtoupper($c['loai_linhkien']) === $compType && !empty($c['ten_linhkien']);
+                        return strtoupper($c['loai_linhkien'] ?? '') === $compType && !empty($c['ten_linhkien']);
                     });
                     if (empty($found)) {
                         return ['code' => 'missing', 'text' => 'Thiếu'];
@@ -299,7 +337,7 @@ if ($selected_id > 0) {
                 $machines_info[] = [
                     'so_may' => $so_may,
                     'ten_cauhinh' => $ten_cauhinh,
-                    'clean_cauhinh' => cleanConfigName($ten_cauhinh),
+                    'clean_cauhinh' => $clean_cauhinh ?: 'Cấu hình 1',
                     'machine_status' => $machine_status,
                     'cpu_status_code' => $cpu_st['code'],
                     'cpu_status_text' => $cpu_st['text'],
@@ -315,6 +353,17 @@ if ($selected_id > 0) {
         }
     }
 }
+
+
+// Tính toán thống kê tổng quan cho tab Danh sách đơn hàng
+$total_missing_orders_count = 0;
+$total_all_machines = 0;
+foreach ($donhangs as $d) {
+    if ((int)$d['so_may_thieu_lk'] > 0) {
+        $total_missing_orders_count++;
+    }
+    $total_all_machines += (int)$d['so_luong_may'];
+}
 ?>
 
 <link rel="stylesheet" href="./css/them-linh-kien-thieu.css?v=<?php echo time(); ?>">
@@ -325,346 +374,537 @@ if ($selected_id > 0) {
     <nav class="breadcrumb">
         <a href="dashboard-ke-toan.php">Kế toán</a>
         <span class="sep">›</span>
-        <a href="#" class="active">Thêm linh kiện thiếu</a>
+        <a href="#" class="active">Quản lý đơn hàng & Linh kiện thiếu</a>
     </nav>
 
-    <!-- Header Section -->
-    <header class="lk-header">
-        <div class="header-left">
-            <div class="header-icon-box">
-                <i class="<?= getComponentIcon($type) ?>"></i>
-            </div>
-            <div class="header-titles">
-                <h1>Thêm linh kiện thiếu cho các máy</h1>
-                <p>Khắc phục sự cố cấu hình thiếu linh kiện (CPU, RAM, Mainboard...) cho các máy đã tạo đơn hàng</p>
-            </div>
+    <!-- Main Top Navigation Tabs -->
+    <div class="top-nav-tabs-container">
+        <div class="top-nav-tabs">
+            <button type="button" class="main-tab-btn" id="btnTabOrders" onclick="switchMainTab('orders')">
+                <i class="fa-regular fa-rectangle-list"></i>
+                <span>Danh sách đơn hàng</span>
+                <span class="main-tab-badge"><?= count($donhangs) ?></span>
+            </button>
+            <button type="button" class="main-tab-btn active" id="btnTabMissing" onclick="switchMainTab('missing')">
+                <i class="fa-solid fa-puzzle-piece"></i>
+                <span>Thêm linh kiện thiếu (<?= htmlspecialchars($type) ?>)</span>
+                <?php if ($total_missing_orders_count > 0): ?>
+                    <span class="main-tab-badge warning"><?= $total_missing_orders_count ?> đơn thiếu</span>
+                <?php endif; ?>
+            </button>
         </div>
+    </div>
 
-        <div class="header-right">
-            <!-- Selector Dropdown -->
-            <div class="selector-container-header">
-                <label for="componentTypeSelector" class="selector-label">Loại linh kiện cần tìm:</label>
-                <select id="componentTypeSelector" class="component-type-select" onchange="changeComponentType(this.value)">
-                    <?php foreach ($allowed_types as $t): ?>
-                        <option value="<?= $t ?>" <?= $t === $type ? 'selected' : '' ?>><?= $t ?></option>
-                    <?php endforeach; ?>
-                </select>
-                <i class="fa-solid fa-chevron-down select-arrow"></i>
-            </div>
-
-            <!-- Filter Toggle -->
-            <div class="filter-toggle-wrap">
-                <span class="switch-label">Hiển thị tất cả đơn hàng</span>
-                <label class="switch">
-                    <input type="checkbox" id="toggleShowAll" checked>
-                    <span class="slider round"></span>
-                </label>
-            </div>
-
-            <!-- User Header Controls -->
-            <div class="header-user-nav">
-                <button type="button" class="notif-btn-circle" title="Thông báo">
-                    <i class="fa-regular fa-bell"></i>
-                    <span class="notif-badge-pill">3</span>
-                </button>
-                <div class="user-profile-pill">
-                    <div class="user-avatar-circle">
-                        <i class="fa-solid fa-user"></i>
+    <!-- ========================================================= -->
+    <!-- TAB 1: DANH SÁCH ĐƠN HÀNG (FULL TABLE VIEW)              -->
+    <!-- ========================================================= -->
+    <section id="mainSectionOrders" style="display: none;">
+        <!-- Metric Stats Summary cho Tab Đơn hàng -->
+        <section class="metric-stats-grid" style="margin-bottom: 1.5rem;">
+            <div class="metric-card metric-purple">
+                <div class="metric-icon-box">
+                    <i class="fa-solid fa-boxes-stacked"></i>
+                </div>
+                <div class="metric-info">
+                    <span class="metric-label">Tổng số đơn hàng</span>
+                    <div class="metric-value-wrap">
+                        <span class="metric-value"><?= number_format(count($donhangs)) ?></span>
+                        <span class="metric-unit">đơn hàng</span>
                     </div>
-                    <span class="user-name-text"><?= htmlspecialchars($_SESSION['fullname'] ?? 'Quản Trị Viên') ?></span>
                 </div>
             </div>
-        </div>
-    </header>
 
-    <!-- Metric Stat Cards (4 Cards Grid) -->
-    <section class="metric-stats-grid">
-        <div class="metric-card metric-purple">
-            <div class="metric-icon-box">
-                <i class="fa-solid fa-receipt"></i>
-            </div>
-            <div class="metric-info">
-                <span class="metric-label">Tổng đơn hàng</span>
-                <div class="metric-value-wrap">
-                    <span class="metric-value"><?= number_format($stats['total_orders']) ?></span>
-                    <span class="metric-unit">đơn hàng</span>
+            <div class="metric-card metric-orange">
+                <div class="metric-icon-box">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div class="metric-info">
+                    <span class="metric-label">Đơn thiếu <?= htmlspecialchars($type) ?></span>
+                    <div class="metric-value-wrap">
+                        <span class="metric-value"><?= number_format($total_missing_orders_count) ?></span>
+                        <span class="metric-unit">đơn hàng</span>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="metric-card metric-orange">
-            <div class="metric-icon-box">
-                <i class="fa-solid fa-circle-xmark"></i>
-            </div>
-            <div class="metric-info">
-                <span class="metric-label">Máy thiếu linh kiện</span>
-                <div class="metric-value-wrap">
-                    <span class="metric-value"><?= number_format($stats['missing_machines']) ?></span>
-                    <span class="metric-unit">máy</span>
+            <div class="metric-card metric-blue">
+                <div class="metric-icon-box">
+                    <i class="fa-solid fa-desktop"></i>
+                </div>
+                <div class="metric-info">
+                    <span class="metric-label">Tổng quy mô máy</span>
+                    <div class="metric-value-wrap">
+                        <span class="metric-value"><?= number_format($total_all_machines) ?></span>
+                        <span class="metric-unit">máy ráp</span>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="metric-card metric-blue">
-            <div class="metric-icon-box">
-                <i class="fa-solid fa-rotate-right"></i>
-            </div>
-            <div class="metric-info">
-                <span class="metric-label">Đang xử lý</span>
-                <div class="metric-value-wrap">
-                    <span class="metric-value"><?= number_format($stats['processing_machines']) ?></span>
-                    <span class="metric-unit">máy</span>
+            <div class="metric-card metric-green">
+                <div class="metric-icon-box">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <div class="metric-info">
+                    <span class="metric-label">Đơn đã đủ <?= htmlspecialchars($type) ?></span>
+                    <div class="metric-value-wrap">
+                        <span class="metric-value"><?= number_format(count($donhangs) - $total_missing_orders_count) ?></span>
+                        <span class="metric-unit">đơn hàng</span>
+                    </div>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <div class="metric-card metric-green">
-            <div class="metric-icon-box">
-                <i class="fa-solid fa-circle-check"></i>
-            </div>
-            <div class="metric-info">
-                <span class="metric-label">Đã hoàn thành</span>
-                <div class="metric-value-wrap">
-                    <span class="metric-value"><?= number_format($stats['completed_machines']) ?></span>
-                    <span class="metric-unit">máy</span>
+        <!-- Full Table Card -->
+        <div class="full-orders-view-card">
+            <div class="orders-table-toolbar">
+                <div class="toolbar-search-filter">
+                    <div class="table-search-wrap">
+                        <i class="fa-solid fa-magnifying-glass" style="color: #94a3b8;"></i>
+                        <input type="text" id="fullOrderSearchInput" placeholder="Tìm mã đơn hàng, tên khách hàng...">
+                    </div>
+                    <select id="fullOrderStatusFilter" class="table-filter-select">
+                        <option value="all">Tất cả trạng thái</option>
+                        <option value="missing">Đơn thiếu <?= htmlspecialchars($type) ?></option>
+                        <option value="full">Đơn đủ <?= htmlspecialchars($type) ?></option>
+                    </select>
                 </div>
+                <a href="ke-toan-tao-don.php" class="btn-action-add-missing" style="text-decoration:none; padding: 9px 16px;">
+                    <i class="fa-solid fa-plus"></i> Tạo đơn hàng mới
+                </a>
+            </div>
+
+            <div class="table-container-responsive">
+                <table class="orders-modern-table" id="fullOrdersTable">
+                    <thead>
+                        <tr>
+                            <th>Mã đơn hàng</th>
+                            <th>Khách hàng</th>
+                            <th>Quy mô máy</th>
+                            <th>Trạng thái <?= htmlspecialchars($type) ?></th>
+                            <th>Ngày tạo</th>
+                            <th style="text-align: right;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fullOrdersTbody">
+                        <?php if (empty($donhangs)): ?>
+                            <tr>
+                                <td colspan="6" style="text-align:center; padding: 2.5rem; color: #94a3b8;">
+                                    Chưa có đơn hàng nào trong hệ thống.
+                                </td>
+                            </tr>
+                        <?php else: ?>
+                            <tr id="fullTableNoResult" style="display:none;">
+                                <td colspan="6" style="text-align:center; padding: 2.5rem; color: #94a3b8;">
+                                    Không tìm thấy đơn hàng nào phù hợp với bộ lọc.
+                                </td>
+                            </tr>
+                            <?php foreach ($donhangs as $d): 
+                                $missing_count = (int)$d['so_may_thieu_lk'];
+                                $search_key = mb_strtolower($d['ma_don_hang'] . ' ' . ($d['ten_khach_hang'] ?? ''), 'UTF-8');
+                            ?>
+                                <tr class="full-order-tr"
+                                    data-id="<?= $d['id_donhang'] ?>"
+                                    data-missing-count="<?= $missing_count ?>"
+                                    data-search="<?= htmlspecialchars($search_key) ?>">
+                                    <td>
+                                        <div class="order-code-cell">
+                                            <a href="javascript:void(0)" onclick="openAddForOrder(<?= $d['id_donhang'] ?>, '<?= $type ?>')" class="order-code-text">
+                                                <?= htmlspecialchars($d['ma_don_hang']) ?>
+                                            </a>
+                                            <span class="tag-demo-pill">demo</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <strong><?= htmlspecialchars($d['ten_khach_hang'] ?: 'Khách lẻ') ?></strong>
+                                    </td>
+                                    <td>
+                                        <span style="font-weight: 600; color: #475569;">
+                                            <i class="fa-solid fa-desktop" style="font-size: 0.8rem; margin-right: 4px; color:#6366f1;"></i>
+                                            <?= (int)$d['so_luong_may'] ?> máy
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <?php if ($missing_count > 0): ?>
+                                            <span class="badge-status-pill danger">
+                                                <i class="fa-solid fa-circle-exclamation"></i> Thiếu <?= $missing_count ?> máy
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="badge-status-pill success">
+                                                <i class="fa-solid fa-circle-check"></i> Đủ <?= htmlspecialchars($type) ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td style="color: #64748b; font-size: 0.85rem;">
+                                        <i class="fa-regular fa-clock" style="margin-right: 4px;"></i>
+                                        <?= date('d/m/Y H:i', strtotime($d['ngay_tao'])) ?>
+                                    </td>
+                                    <td style="text-align: right;">
+                                        <div class="actions-cell-group" style="justify-content: flex-end;">
+                                            <button type="button" class="btn-action-add-missing" onclick="openAddForOrder(<?= $d['id_donhang'] ?>, '<?= $type ?>')">
+                                                <i class="fa-solid fa-plus-circle"></i> Thêm <?= htmlspecialchars($type) ?>
+                                            </button>
+                                            <a href="danh_sach_don_hang.php?search=<?= urlencode($d['ma_don_hang']) ?>" class="btn-action-view-detail" title="Xem chi tiết đơn">
+                                                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination Footer cho Tab Đơn hàng -->
+            <div class="full-table-pagination-footer">
+                <div class="pagination-info" id="fullOrdersPaginationInfo" style="font-size: 0.85rem; color: #64748b; font-weight: 600;"></div>
+                <div class="pagination-buttons" id="fullOrdersPaginationControls"></div>
             </div>
         </div>
     </section>
 
-    <!-- Layout Grid: Cột Trái (Đơn hàng) & Cột Phải (Chi tiết máy) -->
-    <div class="lk-layout-grid">
-        <!-- Cột Trái: Danh sách đơn hàng -->
-        <section class="orders-list-card">
-            <div class="card-header">
-                <div class="orders-header-title">
-                    <span>Đơn hàng thiếu <?= htmlspecialchars($type) ?></span>
-                    <span class="orders-count-badge" id="sidebarOrdersBadge"><?= count($donhangs) ?></span>
+    <!-- ========================================================= -->
+    <!-- TAB 2: THÊM LINH KIỆN THIẾU (2-COLUMN INTERACTIVE VIEW)   -->
+    <!-- ========================================================= -->
+    <section id="mainSectionMissing">
+        <!-- Header Section -->
+        <header class="lk-header">
+            <div class="header-left">
+                <div class="header-icon-box">
+                    <i class="<?= getComponentIcon($type) ?>"></i>
+                </div>
+                <div class="header-titles">
+                    <h1>Thêm linh kiện thiếu cho các máy</h1>
+                    <p>Khắc phục sự cố cấu hình thiếu linh kiện (CPU, RAM, Mainboard...) cho các máy đã tạo đơn hàng</p>
                 </div>
             </div>
 
-            <div class="search-box-container">
-                <div class="search-input-wrapper">
-                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                    <input type="text" id="orderSearchInput" placeholder="Tìm mã đơn, tên khách hàng...">
-                    <button type="button" class="btn-filter-icon" id="btnFilterSidebar" title="Lọc danh sách">
-                        <i class="fa-solid fa-sliders"></i>
+            <div class="header-right">
+                <!-- Selector Dropdown -->
+                <div class="selector-container-header">
+                    <label for="componentTypeSelector" class="selector-label">Loại linh kiện cần tìm:</label>
+                    <select id="componentTypeSelector" class="component-type-select" onchange="changeComponentType(this.value)">
+                        <?php foreach ($allowed_types as $t): ?>
+                            <option value="<?= $t ?>" <?= $t === $type ? 'selected' : '' ?>><?= $t ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <i class="fa-solid fa-chevron-down select-arrow"></i>
+                </div>
+
+                <!-- Filter Toggle -->
+                <div class="filter-toggle-wrap">
+                    <span class="switch-label">Hiển thị tất cả đơn hàng</span>
+                    <label class="switch">
+                        <input type="checkbox" id="toggleShowAll" checked>
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+
+                <!-- User Header Controls -->
+                <div class="header-user-nav">
+                    <button type="button" class="notif-btn-circle" title="Thông báo">
+                        <i class="fa-regular fa-bell"></i>
+                        <span class="notif-badge-pill">3</span>
                     </button>
+                    <div class="user-profile-pill">
+                        <div class="user-avatar-circle">
+                            <i class="fa-solid fa-user"></i>
+                        </div>
+                        <span class="user-name-text"><?= htmlspecialchars($_SESSION['fullname'] ?? 'Quản Trị Viên') ?></span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Metric Stat Cards (4 Cards Grid) -->
+        <section class="metric-stats-grid">
+            <div class="metric-card metric-purple">
+                <div class="metric-icon-box">
+                    <i class="fa-solid fa-receipt"></i>
+                </div>
+                <div class="metric-info">
+                    <span class="metric-label">Tổng đơn hàng</span>
+                    <div class="metric-value-wrap">
+                        <span class="metric-value"><?= number_format($stats['total_orders']) ?></span>
+                        <span class="metric-unit">đơn hàng</span>
+                    </div>
                 </div>
             </div>
 
-            <div class="orders-list-wrapper" id="ordersListWrapper">
-                <?php if (empty($donhangs)): ?>
-                    <div class="empty-state">
-                        <i class="fa-regular fa-folder-open"></i>
-                        <p>Không có đơn hàng nào trong hệ thống.</p>
+            <div class="metric-card metric-orange">
+                <div class="metric-icon-box">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                </div>
+                <div class="metric-info">
+                    <span class="metric-label">Máy thiếu <?= htmlspecialchars($type) ?></span>
+                    <div class="metric-value-wrap">
+                        <span class="metric-value"><?= number_format($stats['missing_machines']) ?></span>
+                        <span class="metric-unit">máy</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card metric-blue">
+                <div class="metric-icon-box">
+                    <i class="fa-solid fa-rotate-right"></i>
+                </div>
+                <div class="metric-info">
+                    <span class="metric-label">Đang xử lý</span>
+                    <div class="metric-value-wrap">
+                        <span class="metric-value"><?= number_format($stats['processing_machines']) ?></span>
+                        <span class="metric-unit">máy</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric-card metric-green">
+                <div class="metric-icon-box">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <div class="metric-info">
+                    <span class="metric-label">Đã hoàn thành</span>
+                    <div class="metric-value-wrap">
+                        <span class="metric-value"><?= number_format($stats['completed_machines']) ?></span>
+                        <span class="metric-unit">máy</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Layout Grid: Cột Trái (Đơn hàng) & Cột Phải (Chi tiết máy) -->
+        <div class="lk-layout-grid">
+            <!-- Cột Trái: Danh sách đơn hàng -->
+            <section class="orders-list-card">
+                <div class="card-header">
+                    <div class="orders-header-title">
+                        <span>Đơn hàng thiếu <?= htmlspecialchars($type) ?></span>
+                        <span class="orders-count-badge" id="sidebarOrdersBadge"><?= count($donhangs) ?></span>
+                    </div>
+                </div>
+
+                <div class="search-box-container">
+                    <div class="search-input-wrapper">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" id="orderSearchInput" placeholder="Tìm mã đơn, tên khách hàng...">
+                        <button type="button" class="btn-filter-icon" id="btnFilterSidebar" title="Lọc danh sách">
+                            <i class="fa-solid fa-sliders"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="orders-list-wrapper" id="ordersListWrapper">
+                    <?php if (empty($donhangs)): ?>
+                        <div class="empty-state">
+                            <i class="fa-regular fa-folder-open"></i>
+                            <p>Không có đơn hàng nào trong hệ thống.</p>
+                        </div>
+                    <?php else: ?>
+                        <?php foreach ($donhangs as $d):
+                            $is_selected = ($selected_id === (int)$d['id_donhang']);
+                            $thieu_count = (int)$d['so_may_thieu_lk'];
+                            $item_class = 'order-item';
+                            if ($is_selected) $item_class .= ' selected';
+                            if ($thieu_count > 0) $item_class .= ' has-missing';
+                        ?>
+                            <div class="<?= $item_class ?>"
+                                 data-id="<?= $d['id_donhang'] ?>"
+                                 data-missing-count="<?= $thieu_count ?>"
+                                 data-search="<?= htmlspecialchars(mb_strtolower($d['ma_don_hang'] . ' ' . ($d['ten_khach_hang'] ?? ''), 'UTF-8')) ?>"
+                                 onclick="selectOrder(<?= $d['id_donhang'] ?>, '<?= $type ?>')">
+                                <div class="order-item-header">
+                                    <div class="code-and-tag">
+                                        <span class="order-code"><?= htmlspecialchars($d['ma_don_hang']) ?></span>
+                                        <span class="tag-demo-pill">demo</span>
+                                    </div>
+                                    <?php if ($thieu_count > 0): ?>
+                                        <span class="status-badge-pill warning">
+                                            Thiếu <?= htmlspecialchars($type) ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="status-badge-pill success">
+                                            <span class="dot-green">●</span> Đủ <?= htmlspecialchars($type) ?>
+                                        </span>
+                                    <?php endif; ?>
+                                </div>
+
+                                <div class="order-item-footer">
+                                    <span class="order-user-date">
+                                        <i class="fa-regular fa-user"></i> <?= date('d/m/Y H:i', strtotime($d['ngay_tao'])) ?>
+                                    </span>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
+
+                <!-- Sidebar Pagination Controls -->
+                <div class="sidebar-pagination-container">
+                    <div class="pagination-buttons" id="sidebarPaginationControls"></div>
+                    <div class="pagination-text" id="sidebarPaginationInfo">
+                        Hiển thị 1 - 10 trong <?= count($donhangs) ?> đơn hàng
+                    </div>
+                </div>
+            </section>
+
+            <!-- Cột Phải: Chi tiết đơn hàng & máy -->
+            <section class="order-details-card">
+                <?php if (!$selected_order): ?>
+                    <div class="no-selection-state">
+                        <i class="fa-solid fa-computer-mouse"></i>
+                        <h3>Chưa chọn đơn hàng</h3>
+                        <p>Hãy chọn một đơn hàng từ danh sách bên trái để kiểm tra và thêm linh kiện thiếu.</p>
                     </div>
                 <?php else: ?>
-                    <?php foreach ($donhangs as $d):
-                        $is_selected = ($selected_id === (int)$d['id_donhang']);
-                        $thieu_count = (int)$d['so_may_thieu_lk'];
-                        $item_class = 'order-item';
-                        if ($is_selected) $item_class .= ' selected';
-                        if ($thieu_count > 0) $item_class .= ' has-missing';
-                    ?>
-                        <div class="<?= $item_class ?>"
-                             data-id="<?= $d['id_donhang'] ?>"
-                             data-missing-count="<?= $thieu_count ?>"
-                             data-search="<?= htmlspecialchars(mb_strtolower($d['ma_don_hang'] . ' ' . ($d['ten_khach_hang'] ?? ''), 'UTF-8')) ?>"
-                             onclick="selectOrder(<?= $d['id_donhang'] ?>, '<?= $type ?>')">
-                            <div class="order-item-header">
-                                <div class="code-and-tag">
-                                    <span class="order-code"><?= htmlspecialchars($d['ma_don_hang']) ?></span>
-                                    <span class="tag-demo-pill">demo</span>
+                    <!-- Top Selected Order Banner -->
+                    <div class="selected-order-banner">
+                        <div class="order-banner-left">
+                            <h2 class="order-title-code"><?= htmlspecialchars($selected_order['ma_don_hang']) ?></h2>
+                            <span class="tag-demo-pill">demo</span>
+                            <span class="order-meta-info"><i class="fa-solid fa-desktop"></i> Quy mô: <?= (int)$selected_order['so_luong_may'] ?> máy</span>
+                            <span class="order-meta-info"><i class="fa-regular fa-calendar"></i> <?= date('d/m/Y', strtotime($selected_order['ngay_tao'])) ?></span>
+                        </div>
+                        <div class="order-banner-right">
+                            <a href="danh_sach_don_hang.php?search=<?= urlencode($selected_order['ma_don_hang']) ?>" class="btn-order-detail-link">
+                                Chi tiết đơn hàng <i class="fa-solid fa-arrow-right"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="details-body">
+                        <!-- Quick Add Component Panel (Purple Container) -->
+                        <div class="add-lk-action-panel">
+                            <div class="action-panel-icon-box">
+                                <i class="<?= getComponentIcon($type) ?>"></i>
+                            </div>
+                            <div class="action-panel-body">
+                                <h4>Thêm <?= htmlspecialchars($type) ?> nhanh cho máy thiếu</h4>
+                                <form id="addComponentForm" onsubmit="submitAddComponent(event)" class="action-form-row">
+                                    <input type="hidden" id="submit_order_id" value="<?= $selected_order['id_donhang'] ?>">
+                                    <input type="hidden" id="submit_comp_type" value="<?= htmlspecialchars($type) ?>">
+                                    <div class="action-input-wrap">
+                                        <input type="text" id="comp_name" list="comp-datalist" placeholder="Nhập tên / mã <?= htmlspecialchars($type) ?> cần thêm..." required>
+                                    </div>
+                                    <button type="submit" class="btn-submit-add" id="btnSubmitAdd">
+                                        <i class="fa-solid fa-plus-circle"></i> Thêm <?= htmlspecialchars($type) ?> cho máy
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Filter Tabs & Bulk Action Header -->
+                        <div class="machines-tabs-bar">
+                            <div class="tabs-nav-list">
+                                <button type="button" class="tab-item active" data-tab="all" onclick="switchMachineTab('all')">
+                                    Tất cả máy (<?= count($machines_info) ?>)
+                                </button>
+                                <button type="button" class="tab-item" data-tab="missing" onclick="switchMachineTab('missing')">
+                                    Thiếu linh kiện (<?= $tab_counts['missing'] ?>)
+                                </button>
+                                <button type="button" class="tab-item" data-tab="processing" onclick="switchMachineTab('processing')">
+                                    Đang xử lý (<?= $tab_counts['processing'] ?>)
+                                </button>
+                                <button type="button" class="tab-item" data-tab="completed" onclick="switchMachineTab('completed')">
+                                    Hoàn thành (<?= $tab_counts['completed'] ?>)
+                                </button>
+                            </div>
+
+                            <div class="bulk-actions-wrapper">
+                                <label class="bulk-checkbox-container">
+                                    <input type="checkbox" id="chkSelectAllMachines" onchange="toggleSelectAllMachines(this.checked)">
+                                    <span>Chọn tất cả</span>
+                                </label>
+                                <div class="bulk-dropdown-wrap">
+                                    <button type="button" class="btn-bulk-dropdown" id="btnBulkDropdown" onclick="toggleBulkMenu(event)">
+                                        Thao tác <i class="fa-solid fa-chevron-down"></i>
+                                    </button>
+                                    <div class="bulk-menu-dropdown" id="bulkMenuDropdown">
+                                        <a href="#" onclick="selectAllMissing(true); hideBulkMenu(); return false;"><i class="fa-regular fa-square-check"></i> Chọn tất cả máy thiếu</a>
+                                        <a href="#" onclick="selectAllMissing(false); hideBulkMenu(); return false;"><i class="fa-regular fa-square"></i> Bỏ chọn tất cả</a>
+                                    </div>
                                 </div>
-                                <?php if ($thieu_count > 0): ?>
-                                    <span class="status-badge-pill warning">
-                                        Thiếu <?= htmlspecialchars($type) ?>
-                                    </span>
+                            </div>
+                        </div>
+
+                        <!-- Machines Cards Grid (4 Columns) -->
+                        <div class="machines-grid-container">
+                            <div class="machines-grid" id="machinesGrid">
+                                <?php if (empty($machines_info)): ?>
+                                    <div class="empty-state grid-span">
+                                        <i class="fa-solid fa-triangle-exclamation"></i>
+                                        <p>Không tìm thấy máy nào trong đơn hàng này.</p>
+                                    </div>
                                 <?php else: ?>
-                                    <span class="status-badge-pill success">
-                                        <span class="dot-green">●</span> Đủ <?= htmlspecialchars($type) ?>
-                                    </span>
+                                    <?php foreach ($machines_info as $m): ?>
+                                        <div class="machine-card status-<?= $m['machine_status'] ?>" 
+                                             data-status="<?= $m['machine_status'] ?>"
+                                             data-so-may="<?= $m['so_may'] ?>">
+                                            
+                                            <div class="machine-card-header">
+                                                <div class="machine-header-title">
+                                                    <label class="checkbox-container" onclick="event.stopPropagation();">
+                                                        <input type="checkbox" class="machine-checkbox"
+                                                               data-so-may="<?= $m['so_may'] ?>"
+                                                               data-ten-cauhinh="<?= htmlspecialchars($m['ten_cauhinh']) ?>">
+                                                        <span class="checkmark"></span>
+                                                    </label>
+                                                    <i class="fa-solid fa-desktop machine-icon"></i>
+                                                    <span class="machine-name-text">Máy <?= sprintf('%02d', $m['so_may']) ?></span>
+                                                </div>
+                                                <span class="status-dot dot-<?= $m['machine_status'] ?>" title="Trạng thái máy"></span>
+                                            </div>
+
+                                            <div class="machine-card-body">
+                                                <div class="config-name-label">
+                                                    <?= htmlspecialchars($m['clean_cauhinh'] ?: 'Cấu hình 1') ?>
+                                                </div>
+
+                                                <div class="comp-status-list">
+                                                    <!-- CPU Row -->
+                                                    <div class="comp-status-row status-<?= $m['cpu_status_code'] ?>">
+                                                        <i class="fa-solid fa-microchip comp-icon"></i>
+                                                        <span class="comp-name-lbl">CPU:</span>
+                                                        <span class="comp-val-text"><?= htmlspecialchars($m['cpu_status_text']) ?></span>
+                                                    </div>
+
+                                                    <!-- RAM Row -->
+                                                    <div class="comp-status-row status-<?= $m['ram_status_code'] ?>">
+                                                        <i class="fa-solid fa-memory comp-icon"></i>
+                                                        <span class="comp-name-lbl">RAM:</span>
+                                                        <span class="comp-val-text"><?= htmlspecialchars($m['ram_status_text']) ?></span>
+                                                    </div>
+
+                                                    <!-- Mainboard Row -->
+                                                    <div class="comp-status-row status-<?= $m['main_status_code'] ?>">
+                                                        <i class="fa-solid fa-cubes comp-icon"></i>
+                                                        <span class="comp-name-lbl">Main:</span>
+                                                        <span class="comp-val-text"><?= htmlspecialchars($m['main_status_text']) ?></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="machine-card-footer">
+                                                <a href="nhap-serial.php?id=<?= $selected_order['id_donhang'] ?>" class="btn-view-detail-link">
+                                                    Xem chi tiết <i class="fa-solid fa-arrow-right"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
                                 <?php endif; ?>
                             </div>
 
-                            <div class="order-item-footer">
-                                <span class="order-user-date">
-                                    <i class="fa-regular fa-user"></i> <?= date('d/m/Y H:i', strtotime($d['ngay_tao'])) ?>
-                                </span>
+                            <!-- Grid Pagination Footer -->
+                            <div class="grid-pagination-container">
+                                <div class="pagination-buttons" id="gridPaginationControls"></div>
+                                <div class="pagination-info-text" id="gridPaginationInfo">
+                                    Hiển thị 1 - 8 trong <?= count($machines_info) ?> máy
+                                </div>
                             </div>
                         </div>
-                    <?php endforeach; ?>
+                    </div>
                 <?php endif; ?>
-            </div>
-
-            <!-- Sidebar Pagination Controls -->
-            <div class="sidebar-pagination-container">
-                <div class="pagination-buttons" id="sidebarPaginationControls"></div>
-                <div class="pagination-text" id="sidebarPaginationInfo">
-                    Hiển thị 1 - 10 trong <?= count($donhangs) ?> đơn hàng
-                </div>
-            </div>
-        </section>
-
-        <!-- Cột Phải: Chi tiết đơn hàng & máy -->
-        <section class="order-details-card">
-            <?php if (!$selected_order): ?>
-                <div class="no-selection-state">
-                    <i class="fa-solid fa-computer-mouse"></i>
-                    <h3>Chưa chọn đơn hàng</h3>
-                    <p>Hãy chọn một đơn hàng từ danh sách bên trái để kiểm tra và thêm linh kiện thiếu.</p>
-                </div>
-            <?php else: ?>
-                <!-- Top Selected Order Banner -->
-                <div class="selected-order-banner">
-                    <div class="order-banner-left">
-                        <h2 class="order-title-code"><?= htmlspecialchars($selected_order['ma_don_hang']) ?></h2>
-                        <span class="tag-demo-pill">demo</span>
-                        <span class="order-meta-info"><i class="fa-solid fa-desktop"></i> Quy mô: <?= (int)$selected_order['so_luong_may'] ?> máy</span>
-                        <span class="order-meta-info"><i class="fa-regular fa-calendar"></i> <?= date('d/m/Y', strtotime($selected_order['ngay_tao'])) ?></span>
-                    </div>
-                    <div class="order-banner-right">
-                        <a href="danh_sach_don_hang.php?search=<?= urlencode($selected_order['ma_don_hang']) ?>" class="btn-order-detail-link">
-                            Chi tiết đơn hàng <i class="fa-solid fa-arrow-right"></i>
-                        </a>
-                    </div>
-                </div>
-
-                <div class="details-body">
-                    <!-- Quick Add Component Panel (Purple Container) -->
-                    <div class="add-lk-action-panel">
-                        <div class="action-panel-icon-box">
-                            <i class="<?= getComponentIcon($type) ?>"></i>
-                        </div>
-                        <div class="action-panel-body">
-                            <h4>Thêm <?= htmlspecialchars($type) ?> nhanh cho máy thiếu</h4>
-                            <form id="addComponentForm" onsubmit="submitAddComponent(event)" class="action-form-row">
-                                <input type="hidden" id="submit_order_id" value="<?= $selected_order['id_donhang'] ?>">
-                                <input type="hidden" id="submit_comp_type" value="<?= htmlspecialchars($type) ?>">
-                                <div class="action-input-wrap">
-                                    <input type="text" id="comp_name" list="comp-datalist" placeholder="Nhập tên / mã <?= htmlspecialchars($type) ?> cần thêm..." required>
-                                </div>
-                                <button type="submit" class="btn-submit-add" id="btnSubmitAdd">
-                                    <i class="fa-solid fa-plus-circle"></i> Thêm <?= htmlspecialchars($type) ?> cho máy
-                                </button>
-                            </form>
-                        </div>
-                    </div>
-
-                    <!-- Filter Tabs & Bulk Action Header -->
-                    <div class="machines-tabs-bar">
-                        <div class="tabs-nav-list">
-                            <button type="button" class="tab-item active" data-tab="all" onclick="switchMachineTab('all')">
-                                Tất cả máy (<?= count($machines_info) ?>)
-                            </button>
-                            <button type="button" class="tab-item" data-tab="missing" onclick="switchMachineTab('missing')">
-                                Thiếu linh kiện (<?= $tab_counts['missing'] ?>)
-                            </button>
-                            <button type="button" class="tab-item" data-tab="processing" onclick="switchMachineTab('processing')">
-                                Đang xử lý (<?= $tab_counts['processing'] ?>)
-                            </button>
-                            <button type="button" class="tab-item" data-tab="completed" onclick="switchMachineTab('completed')">
-                                Hoàn thành (<?= $tab_counts['completed'] ?>)
-                            </button>
-                        </div>
-
-                        <div class="bulk-actions-wrapper">
-                            <label class="bulk-checkbox-container">
-                                <input type="checkbox" id="chkSelectAllMachines" onchange="toggleSelectAllMachines(this.checked)">
-                                <span>Chọn tất cả</span>
-                            </label>
-                            <div class="bulk-dropdown-wrap">
-                                <button type="button" class="btn-bulk-dropdown" id="btnBulkDropdown" onclick="toggleBulkMenu(event)">
-                                    Thao tác <i class="fa-solid fa-chevron-down"></i>
-                                </button>
-                                <div class="bulk-menu-dropdown" id="bulkMenuDropdown">
-                                    <a href="#" onclick="selectAllMissing(true); hideBulkMenu(); return false;"><i class="fa-regular fa-square-check"></i> Chọn tất cả máy thiếu</a>
-                                    <a href="#" onclick="selectAllMissing(false); hideBulkMenu(); return false;"><i class="fa-regular fa-square"></i> Bỏ chọn tất cả</a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Machines Cards Grid (4 Columns) -->
-                    <div class="machines-grid-container">
-                        <div class="machines-grid" id="machinesGrid">
-                            <?php if (empty($machines_info)): ?>
-                                <div class="empty-state grid-span">
-                                    <i class="fa-solid fa-triangle-exclamation"></i>
-                                    <p>Không tìm thấy máy nào trong đơn hàng này.</p>
-                                </div>
-                            <?php else: ?>
-                                <?php foreach ($machines_info as $m): ?>
-                                    <div class="machine-card status-<?= $m['machine_status'] ?>" 
-                                         data-status="<?= $m['machine_status'] ?>"
-                                         data-so-may="<?= $m['so_may'] ?>">
-                                        
-                                        <div class="machine-card-header">
-                                            <div class="machine-header-title">
-                                                <label class="checkbox-container" onclick="event.stopPropagation();">
-                                                    <input type="checkbox" class="machine-checkbox"
-                                                           data-so-may="<?= $m['so_may'] ?>"
-                                                           data-ten-cauhinh="<?= htmlspecialchars($m['ten_cauhinh']) ?>">
-                                                    <span class="checkmark"></span>
-                                                </label>
-                                                <i class="fa-solid fa-desktop machine-icon"></i>
-                                                <span class="machine-name-text">Máy <?= sprintf('%02d', $m['so_may']) ?></span>
-                                            </div>
-                                            <span class="status-dot dot-<?= $m['machine_status'] ?>" title="Trạng thái máy"></span>
-                                        </div>
-
-                                        <div class="machine-card-body">
-                                            <div class="config-name-label">
-                                                <?= htmlspecialchars($m['clean_cauhinh'] ?: 'Cấu hình 1') ?>
-                                            </div>
-
-                                            <div class="comp-status-list">
-                                                <!-- CPU Row -->
-                                                <div class="comp-status-row status-<?= $m['cpu_status_code'] ?>">
-                                                    <i class="fa-solid fa-microchip comp-icon"></i>
-                                                    <span class="comp-name-lbl">CPU:</span>
-                                                    <span class="comp-val-text"><?= htmlspecialchars($m['cpu_status_text']) ?></span>
-                                                </div>
-
-                                                <!-- RAM Row -->
-                                                <div class="comp-status-row status-<?= $m['ram_status_code'] ?>">
-                                                    <i class="fa-solid fa-memory comp-icon"></i>
-                                                    <span class="comp-name-lbl">RAM:</span>
-                                                    <span class="comp-val-text"><?= htmlspecialchars($m['ram_status_text']) ?></span>
-                                                </div>
-
-                                                <!-- Mainboard Row -->
-                                                <div class="comp-status-row status-<?= $m['main_status_code'] ?>">
-                                                    <i class="fa-solid fa-cubes comp-icon"></i>
-                                                    <span class="comp-name-lbl">Main:</span>
-                                                    <span class="comp-val-text"><?= htmlspecialchars($m['main_status_text']) ?></span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="machine-card-footer">
-                                            <a href="nhap-serial.php?id=<?= $selected_order['id_donhang'] ?>" class="btn-view-detail-link">
-                                                Xem chi tiết <i class="fa-solid fa-arrow-right"></i>
-                                            </a>
-                                        </div>
-                                    </div>
-                                <?php endforeach; ?>
-                            <?php endif; ?>
-                        </div>
-
-                        <!-- Grid Pagination Footer -->
-                        <div class="grid-pagination-container">
-                            <div class="pagination-buttons" id="gridPaginationControls"></div>
-                            <div class="pagination-info-text" id="gridPaginationInfo">
-                                Hiển thị 1 - 8 trong <?= count($machines_info) ?> máy
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            <?php endif; ?>
-        </section>
-    </div>
+            </section>
+        </div>
+    </section>
 </main>
 
 <!-- Datalist Gợi Ý Linh Kiện -->

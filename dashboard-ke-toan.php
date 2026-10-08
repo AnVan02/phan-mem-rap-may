@@ -57,20 +57,36 @@
          </thead>
          <tbody id="tableBody">
             <?php
-            // --- LẤY DỮ LIỆU THẬT TỪ DATABASE ---
-               $orders = [];
+            // --- LẤY DỮ LIỆU THẬT TỪ DATABASE (Tối ưu 2 query siêu tốc) ---
+            $orders = [];
             if ($pdo) {
                try {
-                  // Truy vấn đơn hàng kèm thông tin tóm tắt và trạng thái thực tế
-                  $sql = "SELECT d.*,
-                                 SUM(CASE WHEN UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') THEN 1 ELSE 0 END) as total_items,
-                                 SUM(CASE WHEN UPPER(c.loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND c.so_serial IS NOT NULL AND c.so_serial != '' THEN 1 ELSE 0 END) as done_items
-                          FROM donhang d
-                          LEFT JOIN chitiet_donhang c ON c.id_donhang = d.id_donhang
-                          GROUP BY d.id_donhang
-                          ORDER BY d.ngay_tao DESC";
-                  $stmt = $pdo->query($sql);
-                  $orders = $stmt->fetchAll();
+                  // Query 1: Tổng hợp chi tiết linh kiện 1 lần duy nhất theo id_donhang
+                  $summary_rows = $pdo->query("
+                      SELECT
+                          id_donhang,
+                          SUM(CASE WHEN UPPER(loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') THEN 1 ELSE 0 END) as total_items,
+                          SUM(CASE WHEN UPPER(loai_linhkien) NOT IN ('WIN','CASE','FAN','IMEI','IMER') AND so_serial IS NOT NULL AND TRIM(so_serial) != '' THEN 1 ELSE 0 END) as done_items
+                      FROM chitiet_donhang
+                      GROUP BY id_donhang
+                  ")->fetchAll();
+
+                  $summary = [];
+                  foreach ($summary_rows as $s) {
+                      $summary[$s['id_donhang']] = $s;
+                  }
+
+                  // Query 2: Lấy danh sách đơn hàng đã sắp xếp theo ngày tạo
+                  $all_orders = $pdo->query("SELECT * FROM donhang ORDER BY ngay_tao DESC")->fetchAll();
+
+                  // Ghép thông tin nhanh chóng trong PHP (không tốn tài nguyên DB)
+                  foreach ($all_orders as $d) {
+                      $id = $d['id_donhang'];
+                      $sum = $summary[$id] ?? ['total_items' => 0, 'done_items' => 0];
+                      $d['total_items'] = (int)$sum['total_items'];
+                      $d['done_items'] = (int)$sum['done_items'];
+                      $orders[] = $d;
+                  }
                } catch (PDOException $e) {
                   echo "<tr><td colspan='7'>Lỗi: " . $e->getMessage() . "</td></tr>";
                }

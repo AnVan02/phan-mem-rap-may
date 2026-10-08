@@ -104,24 +104,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['ajax'])) {
 
         // Lấy ID của dòng linh kiện hiện tại đang thao tác trên giao diện
         $id_ct_dang_nhap = isset($input['id_ct']) ? (int) $input['id_ct'] : 0;
+        $machine_idx_req = isset($input['machine_idx']) ? (int) $input['machine_idx'] : 0;
+
+        $req_cfg_pure = '';
+        if (!empty($config_name)) {
+            $parts = explode('|', $config_name);
+            $req_cfg_pure = preg_replace('/[^a-z0-9]/u', '', mb_strtolower(trim($parts[0]), 'UTF-8'));
+        }
 
         $available_rows = [];
         foreach ($all_matches as $m) {
             $assigned_cfg = trim((string) ($m['linhkien_chon'] ?? ''));
             $assigned_id_ct = (int) ($m['id_ct'] ?? 0);
+            $assigned_m = (int) ($m['so_may'] ?? 0);
 
-            // CHÍNH XÁC TUYỆT ĐỐI:
-            // 1. Nếu dòng linh kiện này trong kho chưa gán cho máy nào ($assigned_cfg trống) => HỢP LỆ
-            if ($assigned_cfg === '') {
+            // 1. Dòng linh kiện chưa gán cho máy nào ($assigned_cfg trống hoặc $assigned_m == 0) => HỢP LỆ (Kho tự do)
+            if ($assigned_cfg === '' || $assigned_m === 0) {
                 $available_rows[] = $m;
                 continue;
             }
-            // 2. Nếu đã gán, nhưng Record ID ($assigned_id_ct) trùng khít với ID đang nhập => HỢP LỆ
-            // (Điều này cho phép bạn Enter hoặc quét lại chính mã Serial đã lưu cho đúng ô đó)
+
+            // 2. Dòng linh kiện có ID trùng khít với ID ô đang nhập trên màn hình => HỢP LỆ
             if ($id_ct_dang_nhap > 0 && $assigned_id_ct === $id_ct_dang_nhap) {
                 $available_rows[] = $m;
                 continue;
             }
+
+            // 3. Dòng linh kiện đã gán cho chính MÁY HIỆN TẠI (trùng so_may và trùng ten_cauhinh) => HỢP LỆ
+            if ($machine_idx_req > 0 && $assigned_m === $machine_idx_req && !empty($req_cfg_pure)) {
+                $db_cfg_pure = preg_replace('/[^a-z0-9]/u', '', mb_strtolower($assigned_cfg, 'UTF-8'));
+                if ($db_cfg_pure === $req_cfg_pure) {
+                    $available_rows[] = $m;
+                    continue;
+                }
+            }
+
+            // 4. Nếu đã gán cho MÁY KHÁC ($assigned_m > 0 và khác $machine_idx_req) => BỊ CHIẾM (KHÔNG HỢP LỆ)
+            // Kỹ thuật đã nhập thì BẮT BUỘC CHỐT Ở MÁY ĐÓ, không cho phép máy hiện tại tự ý lấy mã.
+        }
+
+        if (!empty($available_rows)) {
+            usort($available_rows, function ($a, $b) use ($id_ct_dang_nhap, $machine_idx_req, $req_cfg_pure) {
+                $a_match_id = ($id_ct_dang_nhap > 0 && (int)$a['id_ct'] === $id_ct_dang_nhap) ? 1 : 0;
+                $b_match_id = ($id_ct_dang_nhap > 0 && (int)$b['id_ct'] === $id_ct_dang_nhap) ? 1 : 0;
+                if ($a_match_id !== $b_match_id) return $b_match_id - $a_match_id;
+
+                $a_cfg_pure = preg_replace('/[^a-z0-9]/u', '', mb_strtolower((string)($a['linhkien_chon'] ?? ''), 'UTF-8'));
+                $b_cfg_pure = preg_replace('/[^a-z0-9]/u', '', mb_strtolower((string)($b['linhkien_chon'] ?? ''), 'UTF-8'));
+                $a_match_m = ((int)$a['so_may'] === $machine_idx_req && $a_cfg_pure === $req_cfg_pure) ? 1 : 0;
+                $b_match_m = ((int)$b['so_may'] === $machine_idx_req && $b_cfg_pure === $req_cfg_pure) ? 1 : 0;
+                if ($a_match_m !== $b_match_m) return $b_match_m - $a_match_m;
+
+                return 0;
+            });
         }
         if (empty($available_rows)) {
             // Lấy đại diện 1 cái để báo lỗi xem nó đang ở đâu

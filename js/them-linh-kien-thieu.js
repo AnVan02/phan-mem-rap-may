@@ -1,11 +1,17 @@
 document.addEventListener('DOMContentLoaded', function () {
-    // 1. Quản lý Đơn hàng Sidebar (Search, Filter, Pagination)
+    // 0. Khởi tạo 2 Tab chính (Danh sách đơn hàng / Thêm linh kiện thiếu)
+    initMainTabs();
+
+    // 1. Quản lý Bảng Đơn hàng Full (Tab 1)
+    initFullOrdersTable();
+
+    // 2. Quản lý Đơn hàng Sidebar (Search, Filter, Pagination)
     initSidebarOrders();
 
-    // 2. Quản lý Tab Filter & Grid Máy (Tabs, Pagination, Selection)
+    // 3. Quản lý Tab Filter & Grid Máy (Tabs, Pagination, Selection)
     initMachinesGrid();
 
-    // 3. Close bulk dropdown on click outside
+    // 4. Close bulk dropdown on click outside
     document.addEventListener('click', function (e) {
         if (!e.target.closest('.bulk-dropdown-wrap')) {
             hideBulkMenu();
@@ -14,10 +20,153 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 /* ==========================================
-   1. SIDEBAR ORDERS PAGINATION & FILTER
+   0. MAIN TOP TABS MANAGEMENT
    ========================================== */
-let sidebarCurrentPage = 1;
-const SIDEBAR_ITEMS_PER_PAGE = 10;
+let currentMainTab = 'missing';
+
+function initMainTabs() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    const idParam = urlParams.get('id');
+
+    // Nếu có query param tab thì ưu tiên, nếu có id thì mở tab missing
+    if (tabParam === 'orders' || tabParam === 'missing') {
+        currentMainTab = tabParam;
+    } else if (idParam) {
+        currentMainTab = 'missing';
+    } else {
+        const savedTab = sessionStorage.getItem('lk_main_tab');
+        if (savedTab) currentMainTab = savedTab;
+    }
+
+    switchMainTab(currentMainTab, false);
+}
+
+function switchMainTab(tabName, updateUrl = true) {
+    currentMainTab = tabName;
+    sessionStorage.setItem('lk_main_tab', tabName);
+
+    // Update Tab Buttons
+    const btnOrders = document.getElementById('btnTabOrders');
+    const btnMissing = document.getElementById('btnTabMissing');
+    if (btnOrders) btnOrders.classList.toggle('active', tabName === 'orders');
+    if (btnMissing) btnMissing.classList.toggle('active', tabName === 'missing');
+
+    // Update Sections Display
+    const secOrders = document.getElementById('mainSectionOrders');
+    const secMissing = document.getElementById('mainSectionMissing');
+    if (secOrders) secOrders.style.display = (tabName === 'orders') ? 'block' : 'none';
+    if (secMissing) secMissing.style.display = (tabName === 'missing') ? 'block' : 'none';
+
+    if (updateUrl) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', tabName);
+        window.history.replaceState({}, '', url.toString());
+    }
+
+    if (tabName === 'orders') {
+        renderFullOrdersTable();
+    } else {
+        renderSidebarOrders();
+        renderMachinesGrid();
+    }
+}
+
+function openAddForOrder(orderId, compType) {
+    window.location.href = `them-linh-kien-thieu.php?id=${orderId}&type=${compType}&tab=missing`;
+}
+
+/* ==========================================
+   FULL ORDERS TABLE (TAB 1)
+   ========================================== */
+let fullOrdersCurrentPage = 1;
+const FULL_ORDERS_PER_PAGE = 10;
+
+function initFullOrdersTable() {
+    const searchInput = document.getElementById('fullOrderSearchInput');
+    const statusSelect = document.getElementById('fullOrderStatusFilter');
+
+    if (searchInput) {
+        searchInput.addEventListener('input', function () {
+            fullOrdersCurrentPage = 1;
+            renderFullOrdersTable();
+        });
+    }
+
+    if (statusSelect) {
+        statusSelect.addEventListener('change', function () {
+            fullOrdersCurrentPage = 1;
+            renderFullOrdersTable();
+        });
+    }
+
+    renderFullOrdersTable();
+}
+
+function getFilteredFullOrders() {
+    const searchInput = document.getElementById('fullOrderSearchInput');
+    const statusSelect = document.getElementById('fullOrderStatusFilter');
+    const searchText = (searchInput ? searchInput.value : '').toLowerCase().trim();
+    const statusVal = statusSelect ? statusSelect.value : 'all';
+
+    const allRows = Array.from(document.querySelectorAll('.full-order-tr'));
+    return allRows.filter(row => {
+        const matchesSearch = row.dataset.search ? row.dataset.search.includes(searchText) : true;
+        const missingCount = parseInt(row.dataset.missingCount || '0', 10);
+        let matchesStatus = true;
+        if (statusVal === 'missing') {
+            matchesStatus = missingCount > 0;
+        } else if (statusVal === 'full') {
+            matchesStatus = missingCount === 0;
+        }
+        return matchesSearch && matchesStatus;
+    });
+}
+
+function renderFullOrdersTable() {
+    const allRows = Array.from(document.querySelectorAll('.full-order-tr'));
+    const filteredRows = getFilteredFullOrders();
+    const totalFiltered = filteredRows.length;
+    const totalPages = Math.max(1, Math.ceil(totalFiltered / FULL_ORDERS_PER_PAGE));
+
+    if (fullOrdersCurrentPage > totalPages) fullOrdersCurrentPage = totalPages;
+    if (fullOrdersCurrentPage < 1) fullOrdersCurrentPage = 1;
+
+    const startIndex = (fullOrdersCurrentPage - 1) * FULL_ORDERS_PER_PAGE;
+    const endIndex = startIndex + FULL_ORDERS_PER_PAGE;
+
+    allRows.forEach(r => r.style.display = 'none');
+    filteredRows.slice(startIndex, endIndex).forEach(r => r.style.display = '');
+
+    // Empty message row
+    const noResultRow = document.getElementById('fullTableNoResult');
+    if (noResultRow) {
+        noResultRow.style.display = (totalFiltered === 0) ? '' : 'none';
+    }
+
+    // Pagination controls
+    renderPaginationButtons(
+        'fullOrdersPaginationControls',
+        fullOrdersCurrentPage,
+        totalPages,
+        page => {
+            fullOrdersCurrentPage = page;
+            renderFullOrdersTable();
+        }
+    );
+
+    // Info text
+    const infoText = document.getElementById('fullOrdersPaginationInfo');
+    if (infoText) {
+        if (totalFiltered === 0) {
+            infoText.textContent = 'Không tìm thấy đơn hàng nào';
+        } else {
+            const startNum = startIndex + 1;
+            const endNum = Math.min(endIndex, totalFiltered);
+            infoText.textContent = `Hiển thị ${startNum} - ${endNum} trong ${totalFiltered} đơn hàng`;
+        }
+    }
+}
 
 function initSidebarOrders() {
     const searchInput = document.getElementById('orderSearchInput');
@@ -259,7 +408,7 @@ function renderPaginationButtons(containerId, currentPage, totalPages, onPageCli
     } else {
         pages.push(1);
         if (currentPage > 3) pages.push('...');
-        
+
         let start = Math.max(2, currentPage - 1);
         let end = Math.min(totalPages - 1, currentPage + 1);
 

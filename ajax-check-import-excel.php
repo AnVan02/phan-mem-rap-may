@@ -272,18 +272,29 @@ $_cacheFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR
     . 'excel_import_' . session_id() . '_' . $order_id . '.json';
 file_put_contents($_cacheFile, json_encode($machineBlocks, JSON_UNESCAPED_UNICODE));
 
+function get_owner_config_check($ten_cauhinh) {
+    $tc = (string)($ten_cauhinh ?? '');
+    if (strpos($tc, ',') === false) {
+        return trim($tc);
+    }
+    $trailing = strlen($tc) - strlen(rtrim($tc, ' '));
+    $cfgs = array_map('trim', explode(',', $tc));
+    return $cfgs[$trailing] ?? trim($cfgs[0] ?? '');
+}
+
 // -------------------------------------------------------
 // LẤY DỮ LIỆU DB MỘT LẦN
 // -------------------------------------------------------
-$dbRows = []; // [so_may][loai_lower][] = serial_lower
+$dbRows = []; // [so_may][loai_lower][] = ['serial' => serial_lower, 'owner' => owner_lower]
 try {
-    $stmt = $pdo->prepare("SELECT so_may, loai_linhkien, so_serial FROM chitiet_donhang WHERE id_donhang = ? AND so_serial IS NOT NULL AND so_serial <> ''");
+    $stmt = $pdo->prepare("SELECT so_may, loai_linhkien, so_serial, ten_cauhinh FROM chitiet_donhang WHERE id_donhang = ? AND so_serial IS NOT NULL AND so_serial <> ''");
     $stmt->execute([$order_id]);
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $r) {
         $may    = (int)$r['so_may'];
         $type   = mb_strtolower(trim($r['loai_linhkien']), 'UTF-8');
         $serial = mb_strtolower(trim($r['so_serial']), 'UTF-8');
-        $dbRows[$may][$type][] = $serial;
+        $owner  = mb_strtolower(get_owner_config_check($r['ten_cauhinh']), 'UTF-8');
+        $dbRows[$may][$type][] = ['serial' => $serial, 'owner' => $owner];
     }
 } catch (PDOException $e) {
     json_exit(['success' => false, 'message' => 'Lỗi DB: ' . $e->getMessage()]);
@@ -415,16 +426,21 @@ foreach ($machineBlocks as $block) {
     }
 }
 
-function getDbSerials(array $dbRows, int $so_may, string $displayType): array
+function getDbSerials(array $dbRows, int $so_may, string $displayType, string $cfgName = ''): array
 {
     global $typeMap;
     $key      = mb_strtolower(trim($displayType), 'UTF-8');
+    $cfgNorm  = mb_strtolower(trim($cfgName), 'UTF-8');
     $keywords = $typeMap[$key] ?? [$key];
     $result   = [];
     foreach ($keywords as $kw) {
-        foreach ($dbRows[$so_may] ?? [] as $dbType => $serials) {
+        foreach ($dbRows[$so_may] ?? [] as $dbType => $entries) {
             if (str_contains($dbType, $kw)) {
-                $result = array_merge($result, $serials);
+                foreach ($entries as $e) {
+                    if ($cfgNorm === '' || $e['owner'] === $cfgNorm) {
+                        $result[] = $e['serial'];
+                    }
+                }
             }
         }
     }
@@ -441,12 +457,13 @@ $resultRows   = [];
 $totalOk      = 0;
 $totalErrors  = 0;
 
-// Nhóm blocks theo so_may để render gọn (mỗi máy 1 dòng trong bảng)
-$byMachine = []; // so_may → {cfg_name, imei, items[], has_error}
+// Nhóm blocks theo từng cấu hình + so_may để render đúng từng máy
+$byMachine = []; // key: cfg__may → {so_may, cfg_name, imei, items[], has_error}
 foreach ($machineBlocks as $block) {
     $may = $block['so_may'];
-    if (!isset($byMachine[$may])) {
-        $byMachine[$may] = [
+    $mKey = $block['cfg_name'] . '__' . $may;
+    if (!isset($byMachine[$mKey])) {
+        $byMachine[$mKey] = [
             'so_may'    => $may,
             'cfg_name'  => $block['cfg_name'],
             'imei'      => $block['imei'],
@@ -454,12 +471,10 @@ foreach ($machineBlocks as $block) {
             'has_error' => false,
         ];
     }
-    // Gộp items từ nhiều config block cùng số máy (hiếm nhưng có thể có)
     foreach ($block['items'] as $it) {
-        $byMachine[$may]['items'][] = $it;
+        $byMachine[$mKey]['items'][] = $it;
     }
 }
-ksort($byMachine);
 
 // Tập hợp tất cả loại linh kiện gặp → làm cột kết quả
 $allTypes = [];
@@ -470,7 +485,9 @@ foreach ($byMachine as $machine) {
     }
 }
 
-foreach ($byMachine as $may => $machine) {
+foreach ($byMachine as $mKey => $machine) {
+    $may      = $machine['so_may'];
+    $cfg_name = $machine['cfg_name'];
     $cells    = [];
     $hasError = false;
 
@@ -478,8 +495,8 @@ foreach ($byMachine as $may => $machine) {
     $imeiVal = $machine['imei'];
     if ($imeiVal !== '') {
         $dbImei   = array_merge(
-            getDbSerials($dbRows, $may, 'imei'),
-            getDbSerials($dbRows, $may, 'imer')
+            getDbSerials($dbRows, $may, 'imei', $cfg_name),
+            getDbSerials($dbRows, $may, 'imer', $cfg_name)
         );
         $jsonImei = $orderImeis[$may - 1] ?? '';
         $imeiLower = mb_strtolower($imeiVal, 'UTF-8');

@@ -306,6 +306,11 @@ try {
                 } else if ($context_so_may > 0) {
                     $final_m = $context_so_may;
                     $final_lk = $context_lk_chon;
+                } else if ($sn !== $slot['so_serial']) {
+                    // Khi Kế toán/Kho cập nhật/thay đổi Serial mới ở chế độ chung: Làm mới (reset) liên kết máy
+                    // để đưa serial về kho tự do (so_may = 0), chờ kỹ thuật scan gán lại đúng máy.
+                    $final_m = 0;
+                    $final_lk = null;
                 }
 
                 // 3. Thực hiện UPDATE nếu có sự thay đổi

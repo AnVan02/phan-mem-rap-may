@@ -431,6 +431,16 @@
     // KIỂM TRA: serial trong file Excel phải khớp với DB
     // -------------------------------------------------------
 
+    function get_owner_config_import($ten_cauhinh) {
+        $tc = (string)($ten_cauhinh ?? '');
+        if (strpos($tc, ',') === false) {
+            return trim($tc);
+        }
+        $trailing = strlen($tc) - strlen(rtrim($tc, ' '));
+        $cfgs = array_map('trim', explode(',', $tc));
+        return $cfgs[$trailing] ?? trim($cfgs[0] ?? '');
+    }
+
     // Tải toàn bộ serial đã nhập cho đơn hàng này (từ nhap-serial.php), theo TỪNG máy + TỪNG loại linh kiện
     // (không dùng 1 tập phẳng chung cho cả đơn — nếu không, serial của CPU máy A có thể trùng ngẫu nhiên
     // với serial của RAM máy B và làm "khớp giả" dù thực chất sai linh kiện/sai máy)
@@ -438,7 +448,7 @@
     try {
         $stAll = $pdo->prepare(
             "SELECT so_may, LOWER(TRIM(loai_linhkien)) as loai, LOWER(TRIM(so_serial)) as serial,
-                    LOWER(TRIM(ten_cauhinh)) as cauhinh
+                    ten_cauhinh as cauhinh
             FROM chitiet_donhang
             WHERE id_donhang = ? AND so_serial IS NOT NULL AND so_serial <> ''"
         );
@@ -461,7 +471,8 @@
             foreach ($dbSerialsByMachine[$so_may] ?? [] as $dbLoai => $entries) {
                 if (!str_contains($dbLoai, $kw)) continue;
                 foreach ($entries as $e) {
-                    if (str_contains($e['cauhinh'], $cfgNorm)) $result[] = $e['serial'];
+                    $owner = mb_strtolower(get_owner_config_import($e['cauhinh']), 'UTF-8');
+                    if ($owner === $cfgNorm) $result[] = $e['serial'];
                 }
             }
         }
@@ -470,7 +481,8 @@
             foreach ($dbSerialsByMachine[0] ?? [] as $dbLoai => $entries) {
                 if (!str_contains($dbLoai, $kw)) continue;
                 foreach ($entries as $e) {
-                    if (str_contains($e['cauhinh'], $cfgNorm)) $result[] = $e['serial'];
+                    $owner = mb_strtolower(get_owner_config_import($e['cauhinh']), 'UTF-8');
+                    if ($owner === $cfgNorm) $result[] = $e['serial'];
                 }
             }
         }
@@ -651,7 +663,7 @@
         $stLoad = $pdo->prepare(
             "SELECT id_ct, so_may, LOWER(TRIM(loai_linhkien)) as loai,
                     LOWER(TRIM(ten_linhkien)) as ten_linhkien,
-                    LOWER(TRIM(ten_cauhinh)) as ten_cauhinh,
+                    ten_cauhinh,
                     linhkien_chon,
                     so_serial
             FROM chitiet_donhang
@@ -696,7 +708,8 @@
 
         foreach ($allCtRows as $row) {
             if (!rowMatchesType($row, $keywords)) continue;
-            if (!str_contains($row['ten_cauhinh'], $cfgNameLower)) continue;
+            $rowOwner = mb_strtolower(get_owner_config_import($row['ten_cauhinh']), 'UTF-8');
+            if ($rowOwner !== $cfgNameLower) continue;
             if ($modelLower !== '' && $row['ten_linhkien'] !== $modelLower) continue;
             if (!rowAvailable($row, $cfgNorm)) continue;
 
@@ -736,8 +749,8 @@
             if ($rowMay <= 0) continue;
             if (!rowMatchesType($row, $keywords)) continue;
             if ($modelLower !== '' && $row['ten_linhkien'] !== $modelLower) continue;
-            // Kiểm tra ten_cauhinh chứa cfgNorm
-            if (!str_contains($row['ten_cauhinh'], $cfgNorm)) continue;
+            $rowOwner = mb_strtolower(get_owner_config_import($row['ten_cauhinh']), 'UTF-8');
+            if ($rowOwner !== $cfgNorm) continue;
             $counts[$rowMay] = ($counts[$rowMay] ?? 0) + 1;
         }
         if (count($counts) < 2) { $cache[$cacheKey] = 0; return 0; }
